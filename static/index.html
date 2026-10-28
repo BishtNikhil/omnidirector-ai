@@ -31,6 +31,29 @@
 
         <!-- Header Actions & Meta Status -->
         <div class="header-actions">
+            <!-- Connect Live Webcam / OBS Virtual Cam -->
+            <button class="btn-studio-action" id="btnWebcamToggle" title="Connect local webcam or OBS Virtual Camera">
+                <span id="webcamIcon">📹</span>
+                <span id="webcamLabel">Connect Camera</span>
+            </button>
+
+            <!-- Export Hub Buttons -->
+            <button class="btn-studio-action" id="btnExportReel" title="Record & export 9:16 vertical reel">
+                <span>📱</span>
+                <span>Export Reel</span>
+            </button>
+
+            <button class="btn-studio-action" id="btnExportEdl" title="Download CMX 3600 EDL for DaVinci Resolve & Premiere Pro">
+                <span>🎬</span>
+                <span>Export EDL</span>
+            </button>
+
+            <!-- Meta Payloads Inspector -->
+            <button class="btn-studio-action meta-action" id="btnOpenMetaDrawer" title="View live Meta foundation model prompts and schemas">
+                <span>🔬</span>
+                <span>Meta Payloads</span>
+            </button>
+
             <div class="status-badge">
                 <span class="status-dot"></span>
                 <span>ON AIR</span>
@@ -41,16 +64,15 @@
                 <span id="activeModelTag">Meta Muse Spark & SAM 3.1</span>
             </div>
 
-            <div class="provider-info" id="activeProviderLabel">
-                Standby Mode
-            </div>
-
             <!-- Theme Toggle Button -->
             <button class="btn-theme-toggle" id="btnThemeToggle" title="Toggle Light / Dark Theme" aria-label="Toggle theme">
                 <span id="themeIcon">🌙</span>
             </button>
         </div>
     </header>
+
+    <!-- Hidden Video Element for Real Webcam Ingestion -->
+    <video id="webcamVideoElement" autoplay muted playsinline style="display:none;"></video>
 
     <!-- Main Workspace Container -->
     <main class="workspace-container">
@@ -63,6 +85,7 @@
                         <span class="tally-chip">PROGRAM</span>
                         <h2 class="cam-name-text" id="activeCamTitle">CAM 1 — Host Prime</h2>
                         <span class="spec-badge">1080p60 • UHD REC</span>
+                        <span class="point-prompt-hint">💡 Click any object on video to test SAM 3.1 Point Prompting</span>
                     </div>
 
                     <div class="program-controls-right">
@@ -89,11 +112,14 @@
 
                 <!-- Live Broadcast Canvas Viewport -->
                 <div class="viewport-screen" id="viewportScreen">
-                    <!-- Real-Time Studio Canvas Simulation -->
+                    <!-- Real-Time Studio Canvas Simulation / Real Video Player -->
                     <canvas id="studioMainCanvas" class="studio-canvas"></canvas>
 
                     <!-- Safe Guidelines Hairlines -->
                     <div class="safe-guides" id="safeGuidesOverlay"></div>
+
+                    <!-- Interactive Click-to-Track Ripple Element -->
+                    <div class="click-ripple" id="clickRipple"></div>
 
                     <!-- Live Lower-Third Dialogue Bar -->
                     <div class="lower-third-overlay" id="lowerThirdOverlay">
@@ -121,8 +147,8 @@
                             <span class="metric-value" id="statKineticCrop">0.50</span>
                         </div>
                         <div class="metric-item">
-                            <span class="metric-label">Pacing:</span>
-                            <span class="metric-value" id="statPacingSpeed">Dynamic (2.5s - 12s)</span>
+                            <span class="metric-label">Provider:</span>
+                            <span class="metric-value" id="activeProviderLabel">Standby</span>
                         </div>
                     </div>
 
@@ -139,7 +165,7 @@
             <!-- Multi-Camera Ingest Matrix (4-Channel) -->
             <div class="matrix-section">
                 <div class="matrix-bar-title">
-                    <h3 class="matrix-heading">MULTI-CAMERA INGEST MATRIX</h3>
+                    <h3 class="matrix-heading">MULTI-CAMERA INGEST MATRIX (4-CH)</h3>
                     <span class="matrix-subtext">Click any camera tile to trigger an immediate manual cut</span>
                 </div>
                 <div class="cameras-grid" id="camerasGrid">
@@ -162,15 +188,28 @@
 
         <!-- Right Column / Sidebar Inspector -->
         <aside class="inspector-column">
-            <!-- 9:16 Kinetic Vertical Reel Live Preview -->
+            <!-- 9:16 Kinetic Vertical Reel Live Preview with Dynamic Center-Staging -->
             <div class="panel-card">
                 <div class="panel-heading-row">
                     <h4 class="panel-title">📱 9:16 KINETIC VERTICAL REEL</h4>
-                    <span class="tag-label tag-sam">SAM 3.1 TRACKED</span>
+                    <span class="tag-label tag-sam">CENTER-STAGED</span>
                 </div>
                 <div class="reel-preview-wrapper">
                     <div class="reel-phone-frame">
                         <canvas id="reelCanvas" class="reel-canvas"></canvas>
+                        
+                        <!-- Speaker Lock HUD Overlay -->
+                        <div class="reel-hud-overlay">
+                            <span class="hud-target-pill" id="reelTargetSpeaker">TARGET: HOST (LOCKED)</span>
+                            <span class="hud-zoom-pill" id="reelZoomLabel">1.00x</span>
+                        </div>
+
+                        <!-- Recording Banner -->
+                        <div class="reel-record-banner" id="reelRecordBanner" style="display:none;">
+                            <span class="rec-dot"></span>
+                            <span id="recCountdown">RECORDING (10s)...</span>
+                        </div>
+
                         <div class="reel-captions-box" id="reelCaptions">
                             <span class="caption-token active-token">Meta</span>
                             <span class="caption-token">Muse</span>
@@ -178,8 +217,9 @@
                         </div>
                     </div>
                     <div class="reel-meta-badges">
-                        <span class="reel-tag-item">Auto-Crop 9:16</span>
+                        <span class="reel-tag-item">Spring Damped</span>
                         <span class="reel-tag-item">Zero Jitter</span>
+                        <span class="reel-tag-item">Rule of Thirds</span>
                     </div>
                 </div>
             </div>
@@ -244,6 +284,33 @@
             </div>
         </aside>
     </main>
+
+    <!-- Meta Model Architecture & Raw Payloads Slide-Out Drawer Modal -->
+    <div class="meta-drawer-overlay" id="metaDrawerOverlay" style="display:none;">
+        <div class="meta-drawer-panel">
+            <div class="drawer-header">
+                <div>
+                    <h3 class="drawer-title">🔬 Meta Foundation Model Architecture & Live Payloads</h3>
+                    <p class="drawer-sub">Structured JSON Schemas & Prompts used across Muse Spark, SAM 3.1 & Muse Voice Transcribe</p>
+                </div>
+                <button class="btn-close-drawer" id="btnCloseDrawer">✕</button>
+            </div>
+            <div class="drawer-body" id="metaDrawerBody">
+                <div class="payload-block">
+                    <h4 class="payload-title">1. Meta Muse Spark (Autonomous Directorial Arbitration)</h4>
+                    <pre class="json-code" id="codeMuseSpark"></pre>
+                </div>
+                <div class="payload-block">
+                    <h4 class="payload-title">2. Meta SAM 3.1 (Segment Anything Model 3.1)</h4>
+                    <pre class="json-code" id="codeSam"></pre>
+                </div>
+                <div class="payload-block">
+                    <h4 class="payload-title">3. Meta Muse Voice Transcribe (Sub-Second Cadence & Emotion)</h4>
+                    <pre class="json-code" id="codeMuseVoice"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="/static/app.js"></script>
 </body>

@@ -171,6 +171,31 @@ class SimulationOmniProvider(BaseOmniProvider):
             latency_ms=round(latency, 2)
         )
 
+    async def segment_point(self, camera_id: str, point_x: float, point_y: float) -> SegmentationMask:
+        """Simulate Meta SAM 3.1 zero-shot point prompt segmentation at (x, y)."""
+        rx = random.uniform(0.06, 0.10)
+        ry = random.uniform(0.08, 0.13)
+        # Create an 8-sided polygon surrounding the click point
+        pts = []
+        for i in range(8):
+            angle = (i / 8) * math.pi * 2
+            jitter = random.uniform(0.85, 1.15)
+            px = max(0.01, min(0.99, point_x + math.cos(angle) * rx * jitter))
+            py = max(0.01, min(0.99, point_y + math.sin(angle) * ry * jitter))
+            pts.append([round(px, 3), round(py, 3)])
+
+        return SegmentationMask(
+            id=f"sam_point_{int(time.time() * 1000)}",
+            label=f"SAM 3.1 Focus ({point_x:.2f}, {point_y:.2f})",
+            confidence=round(random.uniform(0.965, 0.992), 3),
+            bounding_box=[
+                max(0.0, point_x - rx), max(0.0, point_y - ry),
+                min(1.0, point_x + rx), min(1.0, point_y + ry)
+            ],
+            polygon_points=pts,
+            suggested_crop_x=point_x
+        )
+
     async def transcribe_audio_chunk(self, audio_data: Optional[bytes] = None) -> TranscriptionResult:
         # Rotate through dialogue beats
         item = SAMPLE_DIALOGUE_STREAM[self._step % len(SAMPLE_DIALOGUE_STREAM)]

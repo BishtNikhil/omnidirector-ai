@@ -106,6 +106,81 @@ async def run_benchmark():
         "detected_emotions": transcript_res.detected_emotions
     }
 
+class PointPromptRequest(BaseModel):
+    camera_id: str
+    point_x: float
+    point_y: float
+
+@app.post("/api/sam/point-prompt")
+async def segment_point_prompt(req: PointPromptRequest):
+    mask = await director.provider.segment_point(req.camera_id, req.point_x, req.point_y)
+    if director.latest_sam:
+        director.latest_sam.masks.insert(0, mask)
+    return mask.model_dump()
+
+@app.get("/api/export/edl")
+async def export_edl_file():
+    """Generates standard CMX 3600 Edit Decision List for DaVinci Resolve & Premiere Pro."""
+    lines = [
+        "TITLE: OMNIDIRECTOR_LIVE_BROADCAST",
+        "FCM: NON-DROP FRAME",
+        ""
+    ]
+    cur_sec = 0.0
+    cuts = director.recent_cuts if director.recent_cuts else [
+        {"camera": "CAM 1 — Host Prime", "type": "Cut", "reason": "Host opening cadence"},
+        {"camera": "CAM 2 — Studio Wide", "type": "Dissolve", "reason": "Audience perspective refresh"},
+        {"camera": "CAM 4 — Reaction Cam", "type": "Cut", "reason": "Guest punchline laughter"}
+    ]
+    
+    for idx, c in enumerate(cuts, start=1):
+        dur = 4.5
+        in_tc = f"01:{int(cur_sec // 60):02d}:{int(cur_sec % 60):02d}:00"
+        out_tc = f"01:{int((cur_sec + dur) // 60):02d}:{int((cur_sec + dur) % 60):02d}:00"
+        src_tc = f"00:00:00:00 00:00:{int(dur):02d}:00"
+        cam_code = "CAM1" if "Host" in c.get("camera", "") else "CAM2" if "Wide" in c.get("camera", "") else "CAM3" if "Screen" in c.get("camera", "") else "CAM4"
+        trans = "D  030" if c.get("type") == "smooth_dissolve" else "C"
+        
+        lines.append(f"{idx:03d}  {cam_code}  V  {trans}        {src_tc} {in_tc} {out_tc}")
+        lines.append(f"* FROM CLIP NAME: {cam_code}_1080P60.MOV")
+        lines.append(f"* DIRECTORIAL REASON: {c.get('reason', 'Cadence synchronization')}")
+        lines.append("")
+        cur_sec += dur
+
+    edl_content = "\n".join(lines)
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(
+        content=edl_content,
+        headers={"Content-Disposition": "attachment; filename=omnidirector_cutlist.edl"}
+    )
+
+@app.get("/api/meta-prompts")
+async def get_meta_prompts():
+    """Provides full transparency into Meta foundation model prompts and schemas."""
+    return {
+        "muse_spark": {
+            "model": "meta-models/muse-spark-open-1026",
+            "system_instruction": "You are the Executive Director of an autonomous 4-camera live studio. Arbitrate camera cuts with sub-second latency based on speaker cadence, emotional intensity, screen motion, and narrative pacing. Ensure dynamic 9:16 vertical crop coordinates track active subjects.",
+            "output_schema": {
+                "selected_camera_id": "string (enum: cam_host, cam_wide, cam_screen, cam_reaction)",
+                "transition_type": "string (enum: hard_cut, smooth_dissolve, split_screen)",
+                "kinetic_crop_x": "float (0.0 to 1.0)",
+                "confidence": "float (0.0 to 1.0)",
+                "is_climax_highlight": "boolean",
+                "directorial_reasoning": "string"
+            }
+        },
+        "sam_3_1": {
+            "model": "Meta-SAM-3.1",
+            "capabilities": ["zero_shot_spatio_temporal_segmentation", "point_prompting", "box_prompting"],
+            "features": "Real-time subject mask extraction without green screens; sub-pixel boundary polygons for dynamic 9:16 pan-and-scan centering."
+        },
+        "muse_voice_transcribe": {
+            "model": "Meta-Muse-Voice-Transcribe",
+            "capabilities": ["word_level_timestamps", "energy_detection", "emotion_inflection", "silence_detection"]
+        }
+    }
+
 # WebSocket for sub-second studio telemetry
 @app.websocket("/ws/telemetry")
 async def websocket_telemetry_stream(websocket: WebSocket):

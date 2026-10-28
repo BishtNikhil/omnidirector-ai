@@ -61,6 +61,11 @@ class BaseOmniProvider(ABC):
         pass
 
     @abstractmethod
+    async def segment_point(self, camera_id: str, point_x: float, point_y: float) -> SegmentationMask:
+        """Run Meta SAM 3.1 zero-shot point prompt segmentation at (x, y)."""
+        pass
+
+    @abstractmethod
     async def transcribe_audio_chunk(self, audio_data: Optional[bytes] = None) -> TranscriptionResult:
         """Run Meta Muse Voice Transcribe on incoming audio chunk."""
         pass

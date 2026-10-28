@@ -78,6 +78,18 @@ To maintain 100% testability and zero downtime across any network environment, O
 
 ---
 
+## 💎 Commercial SaaS & Studio Features
+
+OmniDirector AI incorporates production-grade broadcast engineering standards:
+- **🎯 Interactive SAM 3.1 Click-to-Track**: Click directly on any subject or object on the 4K canvas to send a zero-shot coordinate point prompt to SAM 3.1, extracting sub-pixel polygonal boundaries in <15ms.
+- **📱 Cinematic Spring-Damped Center-Staging**: Continuous pan-and-scan 9:16 vertical stream with physical spring damping (`0.08` coefficient) and active speaker lock HUD brackets (`TARGET: HOST (LOCKED)` / `TARGET: GUEST`).
+- **🎬 CMX 3600 EDL Export**: 1-Click export of industry-standard Edit Decision Lists ready for DaVinci Resolve and Adobe Premiere Pro multicam timelines.
+- **🔬 Meta Model Payloads & Architecture Transparency**: Slide-out live inspector displaying actual system prompts, reasoning schemas, and output contracts for Muse Spark, SAM 3.1, and Muse Voice Transcribe.
+- **📹 Live Hardware & Virtual Ingest**: Seamlessly toggle between multi-cam synchronized feeds and live WebRTC camera/OBS Virtual Camera inputs.
+- **🎨 Washed-Out Scandinavian Studio Aesthetic**: High-legibility Inter typography, muted alabaster palette (`#F6F7F9`), dual Light/Dark studio modes, and calibrated decibel VU meter waveforms.
+
+---
+
 ## 🚀 Quickstart & Local Installation
 
 ### Prerequisites

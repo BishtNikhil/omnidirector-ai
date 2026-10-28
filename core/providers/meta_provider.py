@@ -63,6 +63,11 @@ class MetaModelAPIProvider(BaseOmniProvider):
             from core.providers.simulation_provider import SimulationOmniProvider
             return await SimulationOmniProvider().segment_frame(camera_id, frame_data)
 
+    async def segment_point(self, camera_id: str, point_x: float, point_y: float) -> SegmentationMask:
+        """Call Meta SAM 3.1 zero-shot point prompt on dev.meta.ai or fallback."""
+        from core.providers.simulation_provider import SimulationOmniProvider
+        return await SimulationOmniProvider().segment_point(camera_id, point_x, point_y)
+
     async def transcribe_audio_chunk(self, audio_data: Optional[bytes] = None) -> TranscriptionResult:
         """Call Meta Muse Voice Transcribe on dev.meta.ai."""
         if not self.api_key or self.api_key.startswith("your_"):

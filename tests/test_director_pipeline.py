@@ -91,3 +91,24 @@ def test_fastapi_endpoints():
     data_bm = res_bm.json()
     assert data_bm["status"] == "PASS"
     assert data_bm["sam_3_1_latency_ms"] >= 0
+
+    # 5. SAM 3.1 Point Prompt API
+    res_pt = client.post("/api/sam/point-prompt", json={"camera_id": "cam_host", "point_x": 0.5, "point_y": 0.4})
+    assert res_pt.status_code == 200
+    data_pt = res_pt.json()
+    assert "label" in data_pt
+    assert len(data_pt["polygon_points"]) >= 3
+
+    # 6. EDL Export API
+    res_edl = client.get("/api/export/edl")
+    assert res_edl.status_code == 200
+    assert "TITLE: OMNIDIRECTOR_LIVE_BROADCAST" in res_edl.text
+    assert "FCM: NON-DROP FRAME" in res_edl.text
+
+    # 7. Meta Model Prompts Transparency API
+    res_meta = client.get("/api/meta-prompts")
+    assert res_meta.status_code == 200
+    data_meta = res_meta.json()
+    assert "muse_spark" in data_meta
+    assert "sam_3_1" in data_meta
+    assert "muse_voice_transcribe" in data_meta

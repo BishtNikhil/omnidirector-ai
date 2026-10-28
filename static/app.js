@@ -1,8 +1,11 @@
 /**
  * OmniDirector Studio — Professional Minimalist Controller
- * Manages dual-theme switching (Light Washout / Dark), real-time studio canvas rendering,
- * SAM 3.1 polygonal segmentation tracking, multi-camera matrix switching,
- * and kinetic 9:16 vertical pan-and-scan.
+ * Incorporates:
+ * 1. Spring-Damped Dynamic Center-Staging & Kinetic Pan-and-Scan for 9:16 Vertical Reel
+ * 2. Live Local Webcam / OBS Virtual Camera Ingestion
+ * 3. Interactive SAM 3.1 Point-and-Click Zero-Shot Prompting
+ * 4. 1-Click DaVinci / Premiere EDL Export & 9:16 Highlight Reel Recording
+ * 5. Meta Model Architecture & Payload Transparency Drawer
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -39,6 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const studioCtx = studioCanvas.getContext('2d');
     const reelCanvas = document.getElementById('reelCanvas');
     const reelCtx = reelCanvas.getContext('2d');
+    const clickRipple = document.getElementById('clickRipple');
 
     const subtitleSpeaker = document.getElementById('subtitleSpeaker');
     const subtitleText = document.getElementById('subtitleText');
@@ -53,9 +57,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const camerasGrid = document.getElementById('camerasGrid');
     const timelineProgressBar = document.getElementById('timelineProgressBar');
     const timelineMarkersLayer = document.getElementById('timelineMarkersLayer');
-    const timelineBeatLabel = document.getElementById('timelineBeatLabel');
 
+    // Reel Elements
+    const reelTargetSpeaker = document.getElementById('reelTargetSpeaker');
+    const reelZoomLabel = document.getElementById('reelZoomLabel');
+    const reelRecordBanner = document.getElementById('reelRecordBanner');
+    const recCountdown = document.getElementById('recCountdown');
     const reelCaptions = document.getElementById('reelCaptions');
+
+    // Inspector Elements
     const reasoningBubble = document.getElementById('reasoningBubble');
     const reasoningModelTag = document.getElementById('reasoningModelTag');
     const reasoningConfidence = document.getElementById('reasoningConfidence');
@@ -67,21 +77,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const waveformCtx = waveformCanvas.getContext('2d');
     const cutsFeed = document.getElementById('cutsFeed');
 
-    // Preset Buttons
-    document.querySelectorAll('.tool-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.tool-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            const preset = tab.dataset.preset;
-            if (preset === 'keynote') {
-                triggerManualCut('cam_screen');
-            } else if (preset === 'podcast') {
-                triggerManualCut('cam_host');
-            } else if (preset === 'creator') {
-                triggerManualCut('cam_reaction');
-            }
-        });
-    });
+    // New Header Action Buttons
+    const btnWebcamToggle = document.getElementById('btnWebcamToggle');
+    const webcamLabel = document.getElementById('webcamLabel');
+    const webcamVideoElement = document.getElementById('webcamVideoElement');
+    const btnExportReel = document.getElementById('btnExportReel');
+    const btnExportEdl = document.getElementById('btnExportEdl');
+    const btnOpenMetaDrawer = document.getElementById('btnOpenMetaDrawer');
+
+    // Meta Drawer Elements
+    const metaDrawerOverlay = document.getElementById('metaDrawerOverlay');
+    const btnCloseDrawer = document.getElementById('btnCloseDrawer');
+    const codeMuseSpark = document.getElementById('codeMuseSpark');
+    const codeSam = document.getElementById('codeSam');
+    const codeMuseVoice = document.getElementById('codeMuseVoice');
 
     // --------------------------------------------------------------------------
     // State Architecture
@@ -92,10 +101,22 @@ document.addEventListener('DOMContentLoaded', () => {
     let showSamMasks = true;
     let shotStartTime = Date.now();
     let currentMasks = [];
-    let kineticX = 0.5;
-    let kineticY = 0.5;
+    
+    // Spring-Damped Kinetic Camera Tracking
+    let currentReelX = 0.5;
+    let targetReelX = 0.5;
+    let currentReelZoom = 1.0;
+    let targetReelZoom = 1.0;
+    let activeSpeakerId = "host";
+
+    // Media & Recording
+    let isWebcamActive = false;
+    let webcamStream = null;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let isRecordingReel = false;
+
     let wavePhase = 0;
-    let animFrame = 0;
     let sessionStartMs = Date.now();
 
     // Canvas Resizing
@@ -120,10 +141,161 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --------------------------------------------------------------------------
-    // Broadcast Canvas Rendering Engine (Cinematic Studio Visuals)
+    // 1. Live Webcam / OBS Ingestion
+    // --------------------------------------------------------------------------
+    btnWebcamToggle.addEventListener('click', async () => {
+        if (!isWebcamActive) {
+            try {
+                webcamStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 1280, height: 720 },
+                    audio: true
+                });
+                webcamVideoElement.srcObject = webcamStream;
+                await webcamVideoElement.play();
+                isWebcamActive = true;
+                btnWebcamToggle.classList.add('webcam-active');
+                webcamLabel.textContent = "Camera Connected (Live)";
+                triggerManualCut('cam_host');
+            } catch (err) {
+                console.warn("Webcam access denied or unavailable:", err);
+                alert("Camera access note: Enable webcam permissions in your browser or select OBS Virtual Camera to feed live video.");
+            }
+        } else {
+            if (webcamStream) {
+                webcamStream.getTracks().forEach(t => t.stop());
+            }
+            webcamVideoElement.srcObject = null;
+            isWebcamActive = false;
+            btnWebcamToggle.classList.remove('webcam-active');
+            webcamLabel.textContent = "Connect Camera";
+        }
+    });
+
+    // --------------------------------------------------------------------------
+    // 2. Interactive SAM 3.1 Point Prompting (Click-to-Track)
+    // --------------------------------------------------------------------------
+    studioCanvas.addEventListener('click', async (e) => {
+        const rect = studioCanvas.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+        const normX = Math.max(0.02, Math.min(0.98, clickX / rect.width));
+        const normY = Math.max(0.02, Math.min(0.98, clickY / rect.height));
+
+        // Animate visual ripple
+        clickRipple.style.left = `${clickX}px`;
+        clickRipple.style.top = `${clickY}px`;
+        clickRipple.classList.remove('animate');
+        void clickRipple.offsetWidth; // trigger reflow
+        clickRipple.classList.add('animate');
+
+        // Immediately update kinetic target to clicked point
+        targetReelX = normX;
+
+        try {
+            const res = await fetch('/api/sam/point-prompt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    camera_id: activeCameraId,
+                    point_x: normX,
+                    point_y: normY
+                })
+            });
+            const newMask = await res.json();
+            currentMasks.unshift(newMask);
+            if (currentMasks.length > 5) currentMasks.pop();
+            renderMasksList();
+        } catch (err) {
+            console.error("Point prompt error:", err);
+        }
+    });
+
+    // --------------------------------------------------------------------------
+    // 3. Export Hub: EDL Download & 9:16 Reel Recording
+    // --------------------------------------------------------------------------
+    btnExportEdl.addEventListener('click', () => {
+        window.location.href = '/api/export/edl';
+    });
+
+    btnExportReel.addEventListener('click', () => {
+        if (isRecordingReel) return;
+        isRecordingReel = true;
+        btnExportReel.classList.add('recording');
+        reelRecordBanner.style.display = 'flex';
+        recordedChunks = [];
+
+        try {
+            const stream = reelCanvas.captureStream(30);
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) recordedChunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `omnidirector_vertical_highlight_${Date.now()}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                isRecordingReel = false;
+                btnExportReel.classList.remove('recording');
+                reelRecordBanner.style.display = 'none';
+            };
+
+            mediaRecorder.start();
+
+            // 10-Second Recording Countdown
+            let timeLeft = 10;
+            const timer = setInterval(() => {
+                timeLeft--;
+                recCountdown.textContent = `RECORDING (${timeLeft}s)...`;
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    mediaRecorder.stop();
+                }
+            }, 1000);
+        } catch (err) {
+            console.error("Recording error:", err);
+            isRecordingReel = false;
+            btnExportReel.classList.remove('recording');
+            reelRecordBanner.style.display = 'none';
+        }
+    });
+
+    // --------------------------------------------------------------------------
+    // 4. Meta Model Transparency Drawer
+    // --------------------------------------------------------------------------
+    btnOpenMetaDrawer.addEventListener('click', async () => {
+        try {
+            const res = await fetch('/api/meta-prompts');
+            const data = await res.json();
+            codeMuseSpark.textContent = JSON.stringify(data.muse_spark, null, 2);
+            codeSam.textContent = JSON.stringify(data.sam_3_1, null, 2);
+            codeMuseVoice.textContent = JSON.stringify(data.muse_voice_transcribe, null, 2);
+            metaDrawerOverlay.style.display = 'flex';
+        } catch (err) {
+            console.error("Payload fetch error:", err);
+        }
+    });
+
+    btnCloseDrawer.addEventListener('click', () => {
+        metaDrawerOverlay.style.display = 'none';
+    });
+
+    metaDrawerOverlay.addEventListener('click', (e) => {
+        if (e.target === metaDrawerOverlay) metaDrawerOverlay.style.display = 'none';
+    });
+
+    // --------------------------------------------------------------------------
+    // Broadcast Canvas Rendering Engine
     // --------------------------------------------------------------------------
     function renderStudioScene() {
-        animFrame++;
         const W = studioCanvas.width;
         const H = studioCanvas.height;
         if (!W || !H) return;
@@ -131,28 +303,34 @@ document.addEventListener('DOMContentLoaded', () => {
         studioCtx.clearRect(0, 0, W, H);
         const t = (Date.now() - sessionStartMs) / 1000;
 
-        // Draw Scene based on Active Camera
-        if (activeCameraId === 'cam_host') {
-            drawHostPrimeScene(studioCtx, W, H, t);
-        } else if (activeCameraId === 'cam_wide') {
-            drawWideStudioScene(studioCtx, W, H, t);
-        } else if (activeCameraId === 'cam_screen') {
-            drawScreenHudScene(studioCtx, W, H, t);
+        // If user webcam is live on CAM 1, render real video
+        if (isWebcamActive && activeCameraId === 'cam_host' && webcamVideoElement.readyState >= 2) {
+            studioCtx.save();
+            studioCtx.drawImage(webcamVideoElement, 0, 0, W, H);
+            studioCtx.restore();
         } else {
-            drawReactionScene(studioCtx, W, H, t);
+            // Draw cinematic studio scenes
+            if (activeCameraId === 'cam_host') {
+                drawHostPrimeScene(studioCtx, W, H, t);
+            } else if (activeCameraId === 'cam_wide') {
+                drawWideStudioScene(studioCtx, W, H, t);
+            } else if (activeCameraId === 'cam_screen') {
+                drawScreenHudScene(studioCtx, W, H, t);
+            } else {
+                drawReactionScene(studioCtx, W, H, t);
+            }
         }
 
-        // Draw SAM 3.1 Segmentation Contours if toggled
+        // Draw SAM 3.1 Polygonal Segmentation Contours
         if (showSamMasks && currentMasks && currentMasks.length > 0) {
             drawSAMPolygons(studioCtx, W, H);
         }
 
-        // Render 9:16 Vertical Reel Crop
-        renderVerticalReel(t);
+        // Render 9:16 Vertical Reel with Spring-Damped Center Staging
+        renderVerticalReel();
     }
 
     function drawHostPrimeScene(ctx, W, H, t) {
-        // Deep Warm Studio Lighting Gradient
         const grad = ctx.createLinearGradient(0, 0, W, H);
         grad.addColorStop(0, '#1E2430');
         grad.addColorStop(0.5, '#141822');
@@ -160,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, W, H);
 
-        // Acoustic Panel Slats on Background Wall
+        // Acoustic Panel Slats
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
         ctx.lineWidth = 14 * (W / 1200);
         for (let x = W * 0.1; x < W * 0.9; x += W * 0.06) {
@@ -170,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.stroke();
         }
 
-        // Warm Ambient Backlight (Slight Amber Halo)
+        // Warm Ambient Backlight
         const halo = ctx.createRadialGradient(W * 0.5, H * 0.42, 10, W * 0.5, H * 0.42, W * 0.35);
         halo.addColorStop(0, 'rgba(212, 150, 80, 0.18)');
         halo.addColorStop(0.7, 'rgba(72, 97, 134, 0.12)');
@@ -178,13 +356,12 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = halo;
         ctx.fillRect(0, 0, W, H);
 
-        // Host Subject Silhouette with Studio Lighting Highlights
         const breath = Math.sin(t * 1.8) * 3;
         const headX = W * 0.5;
         const headY = H * 0.42 + breath;
         const headR = H * 0.14;
 
-        // Shoulders / Torso
+        // Torso
         ctx.fillStyle = '#181E29';
         ctx.beginPath();
         ctx.moveTo(headX - headR * 2.2, H);
@@ -194,7 +371,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.closePath();
         ctx.fill();
 
-        // Rim Lighting on Shoulders
         ctx.strokeStyle = 'rgba(200, 214, 232, 0.3)';
         ctx.lineWidth = 3;
         ctx.stroke();
@@ -205,12 +381,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.arc(headX, headY, headR, 0, Math.PI * 2);
         ctx.fill();
 
-        // Head Rim Light
         ctx.strokeStyle = 'rgba(234, 219, 202, 0.45)';
         ctx.lineWidth = 2.5;
         ctx.stroke();
 
-        // Shure SM7B Style Studio Microphone on Boom Arm
+        // Mic
         const micX = W * 0.38;
         const micY = H * 0.62;
         ctx.fillStyle = '#0F131A';
@@ -221,7 +396,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Boom Arm line
         ctx.strokeStyle = '#181C24';
         ctx.lineWidth = 6;
         ctx.beginPath();
@@ -231,14 +405,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawWideStudioScene(ctx, W, H, t) {
-        // Wide Studio Master View
         const grad = ctx.createLinearGradient(0, 0, W, H);
         grad.addColorStop(0, '#161C26');
         grad.addColorStop(1, '#0C0F14');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, W, H);
 
-        // Studio Table Podium
+        // Podium Table
         ctx.fillStyle = '#1A212E';
         ctx.beginPath();
         ctx.moveTo(W * 0.12, H * 0.95);
@@ -247,8 +420,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.lineTo(W * 0.88, H * 0.95);
         ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.stroke();
 
         // Host on Left
         ctx.fillStyle = '#263042';
@@ -263,27 +434,17 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.arc(W * 0.65, H * 0.46, H * 0.08, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillRect(W * 0.60, H * 0.54, W * 0.10, H * 0.14);
-
-        // Center Studio Screen Graphic
-        ctx.fillStyle = 'rgba(72, 97, 134, 0.15)';
-        ctx.strokeStyle = 'rgba(72, 97, 134, 0.4)';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(W * 0.42, H * 0.28, W * 0.16, H * 0.18);
-        ctx.fillRect(W * 0.42, H * 0.28, W * 0.16, H * 0.18);
     }
 
     function drawScreenHudScene(ctx, W, H, t) {
-        // High-Tech IDE / Telemetry Screen
         ctx.fillStyle = '#0F1217';
         ctx.fillRect(0, 0, W, H);
 
-        // Left Code Editor Window
         ctx.fillStyle = '#151922';
         ctx.fillRect(W * 0.04, H * 0.08, W * 0.52, H * 0.84);
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
         ctx.strokeRect(W * 0.04, H * 0.08, W * 0.52, H * 0.84);
 
-        // Mock Code Lines
         const codeColors = ['#4F7A67', '#486186', '#B08244', '#8591A5'];
         for (let y = H * 0.16; y < H * 0.82; y += H * 0.055) {
             ctx.fillStyle = codeColors[Math.floor(y * 10) % codeColors.length];
@@ -291,13 +452,11 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillRect(W * 0.08, y, lineW, 8 * (H / 600));
         }
 
-        // Right Telemetry Dashboard
         ctx.fillStyle = '#1A212E';
         ctx.fillRect(W * 0.60, H * 0.08, W * 0.36, H * 0.84);
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
         ctx.strokeRect(W * 0.60, H * 0.08, W * 0.36, H * 0.84);
 
-        // Live Sine Graph
         ctx.strokeStyle = '#4F7A67';
         ctx.lineWidth = 2.5;
         ctx.beginPath();
@@ -310,7 +469,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawReactionScene(ctx, W, H, t) {
-        // Profile Reaction Shot
         const grad = ctx.createLinearGradient(0, 0, W, H);
         grad.addColorStop(0, '#211B24');
         grad.addColorStop(1, '#0F0D13');
@@ -321,7 +479,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const headX = W * 0.55;
         const headY = H * 0.44 + breath;
 
-        // Guest Profile Head
         ctx.fillStyle = '#312738';
         ctx.beginPath();
         ctx.ellipse(headX, headY, H * 0.13, H * 0.16, -0.15, 0, Math.PI * 2);
@@ -331,19 +488,15 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.lineWidth = 2.5;
         ctx.stroke();
 
-        // Torso
         ctx.fillStyle = '#1B1622';
         ctx.fillRect(W * 0.38, H * 0.60, W * 0.35, H * 0.40);
     }
 
-    // --------------------------------------------------------------------------
-    // SAM 3.1 Polygonal Segmentation Renderer (Washed-out Minimalist Style)
-    // --------------------------------------------------------------------------
     function drawSAMPolygons(ctx, W, H) {
         const styles = [
-            { stroke: '#4F7A67', fill: 'rgba(79, 122, 103, 0.14)', bg: '#EEF5F1' },
-            { stroke: '#486186', fill: 'rgba(72, 97, 134, 0.14)', bg: '#EEF3F9' },
-            { stroke: '#B08244', fill: 'rgba(176, 130, 68, 0.14)', bg: '#FAF4EC' }
+            { stroke: '#4F7A67', fill: 'rgba(79, 122, 103, 0.15)' },
+            { stroke: '#486186', fill: 'rgba(72, 97, 134, 0.15)' },
+            { stroke: '#B08244', fill: 'rgba(176, 130, 68, 0.15)' }
         ];
 
         currentMasks.forEach((m, idx) => {
@@ -363,14 +516,13 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = style.fill;
             ctx.fill();
 
-            // Refined dashed hairline stroke
             ctx.strokeStyle = style.stroke;
             ctx.lineWidth = 1.5;
             ctx.setLineDash([4, 4]);
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Minimalist Label Tag
+            // Minimalist Inter Label Tag
             const labelX = m.polygon_points[0][0] * W;
             const labelY = Math.max(26, m.polygon_points[0][1] * H - 8);
 
@@ -385,7 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             ctx.strokeStyle = style.stroke;
             ctx.lineWidth = 1;
-            ctx.strokeRect(labelX - 4, labelY - 14, textWidth + 8, 18);
+            ctx.strokeRect(labelX - 4, labelY - 15, textWidth + 10, 20);
 
             ctx.fillStyle = style.stroke;
             ctx.fillText(m.label, labelX, labelY);
@@ -393,33 +545,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --------------------------------------------------------------------------
-    // 9:16 Kinetic Vertical Reel Renderer
+    // 9:16 Kinetic Vertical Reel (Spring-Damped Center-Staging Engine)
     // --------------------------------------------------------------------------
-    function renderVerticalReel(t) {
+    function renderVerticalReel() {
         const W = reelCanvas.width;
         const H = reelCanvas.height;
         if (!W || !H) return;
 
         reelCtx.clearRect(0, 0, W, H);
 
-        // Copy cropped section from main studio canvas based on kineticX
+        // Spring Physics: Smoothly glide toward target crop X with zero jitter
+        currentReelX += (targetReelX - currentReelX) * 0.08;
+        currentReelZoom += (targetReelZoom - currentReelZoom) * 0.10;
+
+        reelZoomLabel.textContent = `${currentReelZoom.toFixed(2)}x`;
+
         const sW = studioCanvas.width;
         const sH = studioCanvas.height;
 
-        const cropW = sH * (9 / 16);
-        const cropH = sH;
-        let cropX = (kineticX * sW) - (cropW / 2);
-        cropX = Math.max(0, Math.min(sW - cropW, cropX));
+        // Base 9:16 window
+        let cropW = (sH * (9 / 16)) / currentReelZoom;
+        let cropH = sH / currentReelZoom;
 
-        reelCtx.drawImage(studioCanvas, cropX, 0, cropW, cropH, 0, 0, W, H);
+        let cropX = (currentReelX * sW) - (cropW / 2);
+        cropX = Math.max(0, Math.min(sW - cropW, cropX));
+        let cropY = (sH - cropH) / 2;
+
+        reelCtx.drawImage(studioCanvas, cropX, cropY, cropW, cropH, 0, 0, W, H);
     }
 
-    // Loop
     setInterval(renderStudioScene, 35);
 
-    // --------------------------------------------------------------------------
-    // Waveform Oscillations
-    // --------------------------------------------------------------------------
+    // Waveform
     function drawWaveform() {
         const W = waveformCanvas.width;
         const H = waveformCanvas.height;
@@ -440,7 +597,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(drawWaveform, 40);
 
     // --------------------------------------------------------------------------
-    // Fetch Configuration & Cameras
+    // Cameras & API Data
     // --------------------------------------------------------------------------
     async function loadConfig() {
         try {
@@ -494,9 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateCameraActiveState() {
         const cam = cameras.find(c => c.id === activeCameraId);
-        if (cam) {
-            activeCamTitle.textContent = cam.label;
-        }
+        if (cam) activeCamTitle.textContent = cam.label;
         document.querySelectorAll('.cam-tile').forEach(t => {
             const isCur = t.id === `tile_${activeCameraId}`;
             t.classList.toggle('on-air-active', isCur);
@@ -504,7 +659,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Toggle Autonomous Directing
     btnToggleAuto.addEventListener('click', async () => {
         isAutoDirecting = !isAutoDirecting;
         try {
@@ -520,7 +674,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Shot Clock Timer (HH:MM:SS.d)
     setInterval(() => {
         const elapsed = (Date.now() - shotStartTime) / 1000;
         const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
@@ -529,7 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 100);
 
     // --------------------------------------------------------------------------
-    // WebSocket Telemetry Ingestion
+    // WebSocket Telemetry Stream
     // --------------------------------------------------------------------------
     function connectWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -557,18 +710,32 @@ document.addEventListener('DOMContentLoaded', () => {
         activeProviderLabel.textContent = t.active_provider_name;
         statTotalCuts.textContent = t.total_cuts_made;
         statHighlights.textContent = t.climax_highlights_count;
-        statKineticCrop.textContent = t.kinetic_crop_x.toFixed(2);
+        statKineticCrop.textContent = currentReelX.toFixed(2);
 
-        // Speech & Subtitles
+        // Speech & Center-Staging
         if (t.latest_transcription) {
             subtitleSpeaker.textContent = t.latest_transcription.speaker_id.toUpperCase();
             subtitleText.textContent = t.latest_transcription.text;
             detectedEmotionsTag.textContent = t.latest_transcription.detected_emotions.join(', ') || 'Focused';
 
+            activeSpeakerId = t.latest_transcription.speaker_id;
+            reelTargetSpeaker.textContent = `TARGET: ${activeSpeakerId.toUpperCase()} (LOCKED)`;
+
+            // Smooth center-staging target: Host at 0.48, Guest at 0.65, Wide centered at 0.50
+            if (activeCameraId === 'cam_wide') {
+                targetReelX = activeSpeakerId === 'guest' ? 0.65 : 0.35;
+            } else if (activeCameraId === 'cam_reaction') {
+                targetReelX = 0.55;
+            } else {
+                targetReelX = 0.50;
+            }
+
+            // Punch-in during climax
+            targetReelZoom = t.latest_transcription.is_climax_moment ? 1.08 : 1.00;
+
             const energyPct = Math.round(t.latest_transcription.energy_score * 100);
             vuFill.style.width = `${energyPct}%`;
 
-            // Vertical Reel Captions
             if (t.latest_transcription.words && t.latest_transcription.words.length > 0) {
                 const words = t.latest_transcription.words.slice(0, 5);
                 reelCaptions.innerHTML = words.map((w, idx) => 
@@ -581,22 +748,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (t.latest_sam_segmentation) {
             samLatencyTag.textContent = `${t.latest_sam_segmentation.latency_ms}ms`;
             currentMasks = t.latest_sam_segmentation.masks || [];
-
-            samMasksList.innerHTML = currentMasks.map(m => `
-                <div class="mask-row-item">
-                    <div class="mask-label-group">
-                        <span class="mask-dot"></span>
-                        <span>${m.label}</span>
-                    </div>
-                    <span class="mask-score">${(m.confidence * 100).toFixed(1)}%</span>
-                </div>
-            `).join('');
-        }
-
-        // Kinetic Centering
-        if (t.kinetic_crop_x !== undefined) {
-            kineticX = t.kinetic_crop_x;
-            kineticY = t.kinetic_crop_y;
+            renderMasksList();
         }
 
         // Muse Spark Reasoning
@@ -623,6 +775,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 </li>
             `).join('');
         }
+    }
+
+    function renderMasksList() {
+        samMasksList.innerHTML = currentMasks.map(m => `
+            <div class="mask-row-item">
+                <div class="mask-label-group">
+                    <span class="mask-dot"></span>
+                    <span>${m.label}</span>
+                </div>
+                <span class="mask-score">${(m.confidence * 100).toFixed(1)}%</span>
+            </div>
+        `).join('');
     }
 
     function addTimelineMarker(isClimax) {

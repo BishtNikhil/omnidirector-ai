@@ -9,6 +9,7 @@ from typing import List, Dict, Optional
 from core.providers.base import (
     BaseOmniProvider,
     SAMSegmentationResult,
+    SegmentationMask,
     TranscriptionResult,
     DirectorCutDecision,
 )
@@ -34,6 +35,10 @@ class BasetenOmniProvider(BaseOmniProvider):
         # Segment frame using SAM 3.1 fallback or partner endpoint
         from core.providers.simulation_provider import SimulationOmniProvider
         return await SimulationOmniProvider().segment_frame(camera_id, frame_data)
+
+    async def segment_point(self, camera_id: str, point_x: float, point_y: float) -> SegmentationMask:
+        from core.providers.simulation_provider import SimulationOmniProvider
+        return await SimulationOmniProvider().segment_point(camera_id, point_x, point_y)
 
     async def transcribe_audio_chunk(self, audio_data: Optional[bytes] = None) -> TranscriptionResult:
         from core.providers.simulation_provider import SimulationOmniProvider
