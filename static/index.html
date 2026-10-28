@@ -1,211 +1,245 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OmniDirector AI — Autonomous Multimodal Broadcast & Spatial Stream Director</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
-<body class="studio-dark">
-    <!-- Top Navigation Header -->
+<body>
+    <!-- Top Studio Header -->
     <header class="studio-header">
-        <div class="brand-group">
-            <div class="logo-mark">
-                <span class="logo-icon">🎬</span>
-            </div>
+        <div class="brand-section">
+            <div class="brand-badge">🎬</div>
             <div>
-                <h1 class="brand-title">OmniDirector <span class="gradient-text">AI</span></h1>
+                <h1 class="brand-title">
+                    OmniDirector <span class="brand-tag">AI STUDIO</span>
+                </h1>
                 <p class="brand-sub">Autonomous Multimodal Broadcast & Spatial Stream Director</p>
             </div>
         </div>
 
-        <div class="header-status-group">
-            <div class="status-pill on-air">
-                <span class="pulsing-dot"></span>
-                <span class="status-label">ON AIR</span>
+        <!-- Center Studio Mode Presets -->
+        <nav class="studio-toolbar" aria-label="Studio Presets">
+            <button class="tool-tab active" data-preset="podcast">🎙️ Podcast Studio</button>
+            <button class="tool-tab" data-preset="keynote">💻 Keynote & Screen</button>
+            <button class="tool-tab" data-preset="creator">⚡ Creator Stream</button>
+        </nav>
+
+        <!-- Header Actions & Meta Status -->
+        <div class="header-actions">
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                <span>ON AIR</span>
             </div>
-            <div class="meta-model-badge">
-                <span class="meta-logo">∞</span>
+
+            <div class="meta-pill">
+                <span>∞</span>
                 <span id="activeModelTag">Meta Muse Spark & SAM 3.1</span>
             </div>
-            <div class="provider-pill">
-                <span class="pill-title">ENGINE:</span>
-                <span id="activeProviderLabel" class="pill-value">Initializing...</span>
+
+            <div class="provider-info" id="activeProviderLabel">
+                Standby Mode
             </div>
+
+            <!-- Theme Toggle Button -->
+            <button class="btn-theme-toggle" id="btnThemeToggle" title="Toggle Light / Dark Theme" aria-label="Toggle theme">
+                <span id="themeIcon">🌙</span>
+            </button>
         </div>
     </header>
 
-    <!-- Main Studio Workspace Grid -->
-    <main class="studio-grid">
-        <!-- Center Column: Active Program Monitor & Multicam Switcher -->
-        <section class="broadcast-viewport">
-            <!-- Active Program Screen -->
-            <div class="program-card">
-                <div class="program-header">
-                    <div class="program-cam-info">
-                        <span class="cam-tally-pill" id="programTally">PROGRAM FEED</span>
-                        <h2 id="activeCamTitle" class="active-cam-name">CAM 1 — Host Prime</h2>
-                        <span class="res-tag">1080p60</span>
+    <!-- Main Workspace Container -->
+    <main class="workspace-container">
+        <!-- Left Column: Primary Program Stage & Ingest Matrix -->
+        <section class="stage-column">
+            <!-- Program Viewport Panel -->
+            <div class="program-panel">
+                <div class="program-bar">
+                    <div class="cam-identity">
+                        <span class="tally-chip">PROGRAM</span>
+                        <h2 class="cam-name-text" id="activeCamTitle">CAM 1 — Host Prime</h2>
+                        <span class="spec-badge">1080p60 • UHD REC</span>
                     </div>
-                    <div class="program-actions">
-                        <label class="toggle-pill" id="maskToggleContainer">
-                            <input type="checkbox" id="toggleSamMasks" checked>
-                            <span class="toggle-slider"></span>
-                            <span class="toggle-text">SAM 3.1 Masks</span>
+
+                    <div class="program-controls-right">
+                        <!-- Safe Area Guides Toggle -->
+                        <label class="switch-label" title="Toggle broadcast safe area guidelines">
+                            <input type="checkbox" id="toggleSafeGuides" checked>
+                            <span class="switch-track"></span>
+                            <span>Safe Guides</span>
                         </label>
-                        <div class="shot-clock">
-                            <span class="clock-icon">⏱️</span>
-                            <span id="shotClockTimer">00:03.4</span>
+
+                        <!-- SAM 3.1 Masks Toggle -->
+                        <label class="switch-label" title="Toggle SAM 3.1 polygonal contours">
+                            <input type="checkbox" id="toggleSamMasks" checked>
+                            <span class="switch-track"></span>
+                            <span>SAM 3.1 Masks</span>
+                        </label>
+
+                        <!-- Broadcast Timecode -->
+                        <div class="timecode-box">
+                            <span id="shotClockTimer">00:04:12.8</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Live Video & SAM Canvas Container -->
-                <div class="video-canvas-container" id="videoCanvasContainer">
-                    <!-- Virtual Simulated Scene -->
-                    <div class="virtual-feed" id="virtualFeedScene">
-                        <div class="feed-background" id="feedBgLayer"></div>
-                        <div class="feed-subject" id="feedSubjectLayer">
-                            <div class="avatar-head"></div>
-                            <div class="avatar-body"></div>
+                <!-- Live Broadcast Canvas Viewport -->
+                <div class="viewport-screen" id="viewportScreen">
+                    <!-- Real-Time Studio Canvas Simulation -->
+                    <canvas id="studioMainCanvas" class="studio-canvas"></canvas>
+
+                    <!-- Safe Guidelines Hairlines -->
+                    <div class="safe-guides" id="safeGuidesOverlay"></div>
+
+                    <!-- Live Lower-Third Dialogue Bar -->
+                    <div class="lower-third-overlay" id="lowerThirdOverlay">
+                        <span class="speaker-capsule" id="subtitleSpeaker">HOST</span>
+                        <p class="sub-dialogue" id="subtitleText">Initializing multimodal stream ingestion...</p>
+                    </div>
+
+                    <!-- Climax Highlight Flash Tint -->
+                    <div class="climax-tint" id="climaxTint"></div>
+                </div>
+
+                <!-- Program Footer Metrics Bar -->
+                <div class="program-footer-bar">
+                    <div class="metrics-row">
+                        <div class="metric-item">
+                            <span class="metric-label">Total Cuts:</span>
+                            <span class="metric-value" id="statTotalCuts">0</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Highlights:</span>
+                            <span class="metric-value highlight" id="statHighlights">0</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Kinetic Center:</span>
+                            <span class="metric-value" id="statKineticCrop">0.50</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Pacing:</span>
+                            <span class="metric-value" id="statPacingSpeed">Dynamic (2.5s - 12s)</span>
                         </div>
                     </div>
 
-                    <!-- Canvas for SAM 3.1 Polygonal Overlays -->
-                    <canvas id="samOverlayCanvas" class="sam-canvas"></canvas>
-
-                    <!-- Real-time Subtitle & Lower Third -->
-                    <div class="live-lower-third" id="lowerThirdContainer">
-                        <div class="speaker-tag" id="subtitleSpeaker">HOST</div>
-                        <p class="subtitle-text" id="subtitleText">Welcome to OmniDirector AI...</p>
-                    </div>
-
-                    <!-- Climax Highlight Flash Indicator -->
-                    <div class="climax-flash" id="climaxFlashEffect"></div>
-                </div>
-
-                <!-- Program Footer Controls -->
-                <div class="program-footer">
-                    <div class="stat-pill">
-                        <span class="stat-lbl">TOTAL CUTS</span>
-                        <span class="stat-num" id="statTotalCuts">0</span>
-                    </div>
-                    <div class="stat-pill">
-                        <span class="stat-lbl">HIGHLIGHTS</span>
-                        <span class="stat-num highlight" id="statHighlights">0</span>
-                    </div>
-                    <div class="stat-pill">
-                        <span class="stat-lbl">KINETIC 9:16 CROP</span>
-                        <span class="stat-num" id="statKineticCrop">X: 0.50</span>
-                    </div>
-
-                    <div class="auto-director-toggle-box">
-                        <span class="director-mode-label">AI DIRECTOR:</span>
-                        <button id="btnToggleAuto" class="btn-director-toggle active">
-                            <span class="toggle-icon">⚡</span>
+                    <div class="director-toggle-container">
+                        <span class="metric-label">DIRECTOR MODE:</span>
+                        <button class="btn-director-mode active" id="btnToggleAuto">
+                            <span>⚡</span>
                             <span id="txtAutoStatus">AUTONOMOUS</span>
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Multi-Camera 4-Way Ingest Matrix -->
-            <div class="multicam-matrix">
-                <div class="matrix-header">
-                    <h3>MULTI-CAMERA INGEST MATRIX (4-CH)</h3>
-                    <span class="matrix-tip">Click any camera for immediate manual cut</span>
+            <!-- Multi-Camera Ingest Matrix (4-Channel) -->
+            <div class="matrix-section">
+                <div class="matrix-bar-title">
+                    <h3 class="matrix-heading">MULTI-CAMERA INGEST MATRIX</h3>
+                    <span class="matrix-subtext">Click any camera tile to trigger an immediate manual cut</span>
                 </div>
-                <div class="cam-cards-grid" id="camCardsGrid">
-                    <!-- Cam cards dynamically populated by JS -->
+                <div class="cameras-grid" id="camerasGrid">
+                    <!-- Dynamic Camera Tiles -->
+                </div>
+            </div>
+
+            <!-- Interactive Timeline Scrubber -->
+            <div class="timeline-section">
+                <div class="timeline-header">
+                    <span class="timeline-title">MULTIMODAL BROADCAST TIMELINE</span>
+                    <span class="spec-badge" id="timelineBeatLabel">BEAT: DIALOGUE INGEST</span>
+                </div>
+                <div class="timeline-track-container" id="timelineTrack">
+                    <div class="timeline-progress-bar" id="timelineProgressBar"></div>
+                    <div class="timeline-markers-layer" id="timelineMarkersLayer"></div>
                 </div>
             </div>
         </section>
 
-        <!-- Right Column: Kinetic Vertical Reel + Muse AI Reasoning Inspector -->
-        <aside class="sidebar-inspector">
+        <!-- Right Column / Sidebar Inspector -->
+        <aside class="inspector-column">
             <!-- 9:16 Kinetic Vertical Reel Live Preview -->
-            <div class="inspector-card vertical-card">
-                <div class="card-title-bar">
-                    <h4>📱 KINETIC 9:16 VERTICAL REEL</h4>
-                    <span class="badge-accent">SAM 3.1 TRACKED</span>
+            <div class="panel-card">
+                <div class="panel-heading-row">
+                    <h4 class="panel-title">📱 9:16 KINETIC VERTICAL REEL</h4>
+                    <span class="tag-label tag-sam">SAM 3.1 TRACKED</span>
                 </div>
-                <div class="vertical-reel-container">
-                    <div class="vertical-frame" id="verticalFrameViewport">
-                        <div class="vertical-subject" id="verticalSubjectSim">
-                            <div class="avatar-head"></div>
-                            <div class="avatar-body"></div>
-                        </div>
-                        <div class="vertical-captions" id="verticalCaptions">
-                            <span class="karaoke-word highlight">Meta</span>
-                            <span class="karaoke-word">Muse</span>
-                            <span class="karaoke-word">Spark</span>
+                <div class="reel-preview-wrapper">
+                    <div class="reel-phone-frame">
+                        <canvas id="reelCanvas" class="reel-canvas"></canvas>
+                        <div class="reel-captions-box" id="reelCaptions">
+                            <span class="caption-token active-token">Meta</span>
+                            <span class="caption-token">Muse</span>
+                            <span class="caption-token">Spark</span>
                         </div>
                     </div>
-                    <div class="vertical-overlay-info">
-                        <span class="overlay-tag">Auto-Pan & Scan</span>
-                        <span class="overlay-tag">Sub-Sec Audio Sync</span>
+                    <div class="reel-meta-badges">
+                        <span class="reel-tag-item">Auto-Crop 9:16</span>
+                        <span class="reel-tag-item">Zero Jitter</span>
                     </div>
                 </div>
             </div>
 
             <!-- Meta Muse Spark Directorial Reasoning Console -->
-            <div class="inspector-card reasoning-card">
-                <div class="card-title-bar">
-                    <h4>🧠 MUSE SPARK REASONING</h4>
-                    <span class="badge-live">CHAIN-OF-THOUGHT</span>
+            <div class="panel-card">
+                <div class="panel-heading-row">
+                    <h4 class="panel-title">🧠 MUSE SPARK ARBITRATION</h4>
+                    <span class="tag-label tag-meta">REASONING TRACE</span>
                 </div>
-                <div class="reasoning-body">
-                    <div class="reasoning-bubble" id="reasoningBubble">
-                        Initializing autonomous arbitration engine...
-                    </div>
-                    <div class="model-telemetry-row">
-                        <span class="model-tag" id="reasoningModelTag">Meta-Muse-Spark</span>
-                        <span class="confidence-tag" id="reasoningConfidence">Confidence: 98%</span>
-                    </div>
+                <div class="reasoning-text-card" id="reasoningBubble">
+                    Evaluating active shot cadence and speaker handover...
+                </div>
+                <div class="reasoning-meta-row">
+                    <span id="reasoningModelTag">Meta-Muse-Spark</span>
+                    <span id="reasoningConfidence" style="color: var(--accent-sam); font-weight: 700;">Confidence: 96%</span>
                 </div>
             </div>
 
             <!-- SAM 3.1 Spatio-Temporal Segmentation Inspector -->
-            <div class="inspector-card sam-inspector-card">
-                <div class="card-title-bar">
-                    <h4>🖼️ SAM 3.1 ZERO-SHOT MASKS</h4>
-                    <span class="badge-latency" id="samLatencyTag">Latency: 12.4ms</span>
+            <div class="panel-card">
+                <div class="panel-heading-row">
+                    <h4 class="panel-title">🖼️ SAM 3.1 ZERO-SHOT MASKS</h4>
+                    <span class="tag-label tag-sam" id="samLatencyTag">11.8ms</span>
                 </div>
-                <div class="masks-list" id="samMasksList">
+                <div class="masks-data-list" id="samMasksList">
                     <!-- Populated dynamically -->
                 </div>
             </div>
 
-            <!-- Audio Energy & Climax Telemetry Meter -->
-            <div class="inspector-card audio-telemetry-card">
-                <div class="card-title-bar">
-                    <h4>🎙️ MUSE VOICE TRANSCRIBE</h4>
-                    <span class="badge-emotions" id="detectedEmotionsTag">Engaged</span>
+            <!-- Muse Voice Transcribe & VU Peak Meter -->
+            <div class="panel-card">
+                <div class="panel-heading-row">
+                    <h4 class="panel-title">🎙️ MUSE VOICE TRANSCRIBE</h4>
+                    <span class="tag-label tag-gold" id="detectedEmotionsTag">Focused</span>
                 </div>
-                <div class="audio-energy-meter">
-                    <div class="energy-track">
-                        <div class="energy-fill" id="audioEnergyFill" style="width: 65%;"></div>
+                <div class="vu-meter-box">
+                    <div class="vu-track">
+                        <div class="vu-fill" id="vuFill" style="width: 65%;"></div>
                     </div>
-                    <div class="energy-labels">
-                        <span>VOCAL ENERGY</span>
-                        <span id="audioEnergyVal">65%</span>
+                    <div class="vu-scale-labels">
+                        <span>-48 dB</span>
+                        <span>-24 dB</span>
+                        <span>-12 dB</span>
+                        <span>-6 dB</span>
+                        <span>0 dB</span>
                     </div>
                 </div>
-                <div class="waveform-canvas-box">
-                    <canvas id="audioWaveformCanvas" width="300" height="40"></canvas>
+                <div class="waveform-box">
+                    <canvas id="waveformCanvas" width="300" height="36"></canvas>
                 </div>
             </div>
 
-            <!-- Recent Cuts History -->
-            <div class="inspector-card history-card">
-                <div class="card-title-bar">
-                    <h4>📜 RECENT DIRECTORIAL CUTS</h4>
+            <!-- Recent Cuts Audit Feed -->
+            <div class="panel-card">
+                <div class="panel-heading-row">
+                    <h4 class="panel-title">📜 DIRECTORIAL CUTS AUDIT</h4>
                 </div>
-                <ul class="cuts-history-list" id="cutsHistoryList">
-                    <!-- Populated by JS -->
+                <ul class="cuts-feed" id="cutsFeed">
+                    <!-- Populated dynamically -->
                 </ul>
             </div>
         </aside>
