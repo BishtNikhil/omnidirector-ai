@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniDirector AI — Autonomous Multimodal Broadcast & Spatial Stream Director</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="studio-dark">
+    <!-- Top Navigation Header -->
+    <header class="studio-header">
+        <div class="brand-group">
+            <div class="logo-mark">
+                <span class="logo-icon">🎬</span>
+            </div>
+            <div>
+                <h1 class="brand-title">OmniDirector <span class="gradient-text">AI</span></h1>
+                <p class="brand-sub">Autonomous Multimodal Broadcast & Spatial Stream Director</p>
+            </div>
+        </div>
+
+        <div class="header-status-group">
+            <div class="status-pill on-air">
+                <span class="pulsing-dot"></span>
+                <span class="status-label">ON AIR</span>
+            </div>
+            <div class="meta-model-badge">
+                <span class="meta-logo">∞</span>
+                <span id="activeModelTag">Meta Muse Spark & SAM 3.1</span>
+            </div>
+            <div class="provider-pill">
+                <span class="pill-title">ENGINE:</span>
+                <span id="activeProviderLabel" class="pill-value">Initializing...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Studio Workspace Grid -->
+    <main class="studio-grid">
+        <!-- Center Column: Active Program Monitor & Multicam Switcher -->
+        <section class="broadcast-viewport">
+            <!-- Active Program Screen -->
+            <div class="program-card">
+                <div class="program-header">
+                    <div class="program-cam-info">
+                        <span class="cam-tally-pill" id="programTally">PROGRAM FEED</span>
+                        <h2 id="activeCamTitle" class="active-cam-name">CAM 1 — Host Prime</h2>
+                        <span class="res-tag">1080p60</span>
+                    </div>
+                    <div class="program-actions">
+                        <label class="toggle-pill" id="maskToggleContainer">
+                            <input type="checkbox" id="toggleSamMasks" checked>
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-text">SAM 3.1 Masks</span>
+                        </label>
+                        <div class="shot-clock">
+                            <span class="clock-icon">⏱️</span>
+                            <span id="shotClockTimer">00:03.4</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Video & SAM Canvas Container -->
+                <div class="video-canvas-container" id="videoCanvasContainer">
+                    <!-- Virtual Simulated Scene -->
+                    <div class="virtual-feed" id="virtualFeedScene">
+                        <div class="feed-background" id="feedBgLayer"></div>
+                        <div class="feed-subject" id="feedSubjectLayer">
+                            <div class="avatar-head"></div>
+                            <div class="avatar-body"></div>
+                        </div>
+                    </div>
+
+                    <!-- Canvas for SAM 3.1 Polygonal Overlays -->
+                    <canvas id="samOverlayCanvas" class="sam-canvas"></canvas>
+
+                    <!-- Real-time Subtitle & Lower Third -->
+                    <div class="live-lower-third" id="lowerThirdContainer">
+                        <div class="speaker-tag" id="subtitleSpeaker">HOST</div>
+                        <p class="subtitle-text" id="subtitleText">Welcome to OmniDirector AI...</p>
+                    </div>
+
+                    <!-- Climax Highlight Flash Indicator -->
+                    <div class="climax-flash" id="climaxFlashEffect"></div>
+                </div>
+
+                <!-- Program Footer Controls -->
+                <div class="program-footer">
+                    <div class="stat-pill">
+                        <span class="stat-lbl">TOTAL CUTS</span>
+                        <span class="stat-num" id="statTotalCuts">0</span>
+                    </div>
+                    <div class="stat-pill">
+                        <span class="stat-lbl">HIGHLIGHTS</span>
+                        <span class="stat-num highlight" id="statHighlights">0</span>
+                    </div>
+                    <div class="stat-pill">
+                        <span class="stat-lbl">KINETIC 9:16 CROP</span>
+                        <span class="stat-num" id="statKineticCrop">X: 0.50</span>
+                    </div>
+
+                    <div class="auto-director-toggle-box">
+                        <span class="director-mode-label">AI DIRECTOR:</span>
+                        <button id="btnToggleAuto" class="btn-director-toggle active">
+                            <span class="toggle-icon">⚡</span>
+                            <span id="txtAutoStatus">AUTONOMOUS</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Multi-Camera 4-Way Ingest Matrix -->
+            <div class="multicam-matrix">
+                <div class="matrix-header">
+                    <h3>MULTI-CAMERA INGEST MATRIX (4-CH)</h3>
+                    <span class="matrix-tip">Click any camera for immediate manual cut</span>
+                </div>
+                <div class="cam-cards-grid" id="camCardsGrid">
+                    <!-- Cam cards dynamically populated by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Column: Kinetic Vertical Reel + Muse AI Reasoning Inspector -->
+        <aside class="sidebar-inspector">
+            <!-- 9:16 Kinetic Vertical Reel Live Preview -->
+            <div class="inspector-card vertical-card">
+                <div class="card-title-bar">
+                    <h4>📱 KINETIC 9:16 VERTICAL REEL</h4>
+                    <span class="badge-accent">SAM 3.1 TRACKED</span>
+                </div>
+                <div class="vertical-reel-container">
+                    <div class="vertical-frame" id="verticalFrameViewport">
+                        <div class="vertical-subject" id="verticalSubjectSim">
+                            <div class="avatar-head"></div>
+                            <div class="avatar-body"></div>
+                        </div>
+                        <div class="vertical-captions" id="verticalCaptions">
+                            <span class="karaoke-word highlight">Meta</span>
+                            <span class="karaoke-word">Muse</span>
+                            <span class="karaoke-word">Spark</span>
+                        </div>
+                    </div>
+                    <div class="vertical-overlay-info">
+                        <span class="overlay-tag">Auto-Pan & Scan</span>
+                        <span class="overlay-tag">Sub-Sec Audio Sync</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meta Muse Spark Directorial Reasoning Console -->
+            <div class="inspector-card reasoning-card">
+                <div class="card-title-bar">
+                    <h4>🧠 MUSE SPARK REASONING</h4>
+                    <span class="badge-live">CHAIN-OF-THOUGHT</span>
+                </div>
+                <div class="reasoning-body">
+                    <div class="reasoning-bubble" id="reasoningBubble">
+                        Initializing autonomous arbitration engine...
+                    </div>
+                    <div class="model-telemetry-row">
+                        <span class="model-tag" id="reasoningModelTag">Meta-Muse-Spark</span>
+                        <span class="confidence-tag" id="reasoningConfidence">Confidence: 98%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SAM 3.1 Spatio-Temporal Segmentation Inspector -->
+            <div class="inspector-card sam-inspector-card">
+                <div class="card-title-bar">
+                    <h4>🖼️ SAM 3.1 ZERO-SHOT MASKS</h4>
+                    <span class="badge-latency" id="samLatencyTag">Latency: 12.4ms</span>
+                </div>
+                <div class="masks-list" id="samMasksList">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Audio Energy & Climax Telemetry Meter -->
+            <div class="inspector-card audio-telemetry-card">
+                <div class="card-title-bar">
+                    <h4>🎙️ MUSE VOICE TRANSCRIBE</h4>
+                    <span class="badge-emotions" id="detectedEmotionsTag">Engaged</span>
+                </div>
+                <div class="audio-energy-meter">
+                    <div class="energy-track">
+                        <div class="energy-fill" id="audioEnergyFill" style="width: 65%;"></div>
+                    </div>
+                    <div class="energy-labels">
+                        <span>VOCAL ENERGY</span>
+                        <span id="audioEnergyVal">65%</span>
+                    </div>
+                </div>
+                <div class="waveform-canvas-box">
+                    <canvas id="audioWaveformCanvas" width="300" height="40"></canvas>
+                </div>
+            </div>
+
+            <!-- Recent Cuts History -->
+            <div class="inspector-card history-card">
+                <div class="card-title-bar">
+                    <h4>📜 RECENT DIRECTORIAL CUTS</h4>
+                </div>
+                <ul class="cuts-history-list" id="cutsHistoryList">
+                    <!-- Populated by JS -->
+                </ul>
+            </div>
+        </aside>
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

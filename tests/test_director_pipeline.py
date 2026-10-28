@@ -1,0 +1,93 @@
+"""
+OmniDirector AI — Comprehensive Pipeline & Contract Test Suite
+"""
+import pytest
+import asyncio
+from core.config import config
+from core.providers.simulation_provider import SimulationOmniProvider
+from core.agents.director_agent import DirectorAgent
+from fastapi.testclient import TestClient
+from app import app
+
+def test_simulation_provider_contracts():
+    async def _run():
+        provider = SimulationOmniProvider()
+        
+        # 1. SAM 3.1 Frame Segmentation
+        sam_res = await provider.segment_frame("cam_host")
+        assert sam_res.model_version.startswith("Meta-SAM-3.1")
+        assert len(sam_res.masks) >= 1
+        assert sam_res.latency_ms > 0
+        assert 0.0 <= sam_res.masks[0].confidence <= 1.0
+        assert len(sam_res.masks[0].polygon_points) >= 3
+
+        # 2. Muse Voice Transcribe
+        transcript = await provider.transcribe_audio_chunk()
+        assert transcript.model_version.startswith("Meta-Muse-Voice-Transcribe")
+        assert len(transcript.text) > 0
+        assert len(transcript.words) > 0
+        assert 0.0 <= transcript.energy_score <= 1.0
+
+        # 3. Muse Spark Directorial Arbitration
+        decision = await provider.evaluate_directorial_cut(
+            current_camera="cam_host",
+            recent_transcripts=[transcript],
+            visual_activity={"cam_host": 0.6, "cam_screen": 0.8},
+            duration_on_current_cam_sec=4.0
+        )
+        assert decision.model_version.startswith("Meta-Muse-Spark")
+        assert decision.selected_camera_id in [c.id for c in config.cameras]
+        assert len(decision.reasoning) > 0
+        
+    asyncio.run(_run())
+
+def test_director_agent_lifecycle():
+    async def _run():
+        director = DirectorAgent(provider=SimulationOmniProvider())
+        
+        # Initial state
+        assert director.active_camera == "cam_host"
+        assert director.total_cuts == 0
+        
+        # Run 3 heartbeat steps
+        for _ in range(3):
+            telemetry = await director.step()
+            assert telemetry.active_camera_id in [c.id for c in config.cameras]
+            assert telemetry.time_on_camera_sec >= 0.0
+            assert 0.0 <= telemetry.kinetic_crop_x <= 1.0
+
+        # Test manual creator cut override
+        decision = director.manual_cut("cam_screen", lock_duration_sec=5.0)
+        assert director.active_camera == "cam_screen"
+        assert director.total_cuts >= 1
+        assert decision.selected_camera_id == "cam_screen"
+
+    asyncio.run(_run())
+
+def test_fastapi_endpoints():
+    client = TestClient(app)
+    
+    # 1. Config endpoint
+    res_cfg = client.get("/api/config")
+    assert res_cfg.status_code == 200
+    data_cfg = res_cfg.json()
+    assert len(data_cfg["cameras"]) == 4
+    
+    # 2. Telemetry endpoint
+    res_tel = client.get("/api/telemetry")
+    assert res_tel.status_code == 200
+    data_tel = res_tel.json()
+    assert "active_camera_id" in data_tel
+    assert "kinetic_crop_x" in data_tel
+    
+    # 3. Manual cut API
+    res_cut = client.post("/api/cut", json={"camera_id": "cam_reaction", "lock_duration_sec": 4.0})
+    assert res_cut.status_code == 200
+    assert res_cut.json()["selected_camera_id"] == "cam_reaction"
+    
+    # 4. Benchmark API
+    res_bm = client.get("/api/benchmark")
+    assert res_bm.status_code == 200
+    data_bm = res_bm.json()
+    assert data_bm["status"] == "PASS"
+    assert data_bm["sam_3_1_latency_ms"] >= 0
