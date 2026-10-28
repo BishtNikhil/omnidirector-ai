@@ -112,3 +112,14 @@ def test_fastapi_endpoints():
     assert "muse_spark" in data_meta
     assert "sam_3_1" in data_meta
     assert "muse_voice_transcribe" in data_meta
+
+    # 8. Camera Online/Offline Status Toggle API
+    res_cam_off = client.post("/api/cameras/status", json={"camera_id": "cam_reaction", "is_connected": False})
+    assert res_cam_off.status_code == 200
+    assert "cam_reaction" not in res_cam_off.json()["connected_cameras"]
+    
+    # Restore cam_reaction
+    res_cam_on = client.post("/api/cameras/status", json={"camera_id": "cam_reaction", "is_connected": True})
+    assert res_cam_on.status_code == 200
+    assert "cam_reaction" in res_cam_on.json()["connected_cameras"]
+

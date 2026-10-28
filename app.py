@@ -88,6 +88,21 @@ async def toggle_autonomous_mode(req: ToggleAutoRequest):
     director.is_auto_directing = req.enabled
     return {"status": "ok", "is_auto_directing": director.is_auto_directing}
 
+class CameraStatusRequest(BaseModel):
+    camera_id: str
+    is_connected: bool
+
+@app.post("/api/cameras/status")
+async def set_camera_online_status(req: CameraStatusRequest):
+    cams = director.set_camera_status(req.camera_id, req.is_connected)
+    return {
+        "status": "ok",
+        "camera_id": req.camera_id,
+        "is_connected": req.is_connected,
+        "connected_cameras": cams,
+        "active_camera_id": director.active_camera
+    }
+
 @app.get("/api/benchmark")
 async def run_benchmark():
     import time
@@ -201,7 +216,8 @@ async def websocket_telemetry_stream(websocket: WebSocket):
                 kinetic_crop_x=round(director.kinetic_x, 3),
                 kinetic_crop_y=round(director.kinetic_y, 3),
                 climax_highlights_count=len(director.highlights),
-                recent_cuts_history=director.recent_cuts[:6]
+                recent_cuts_history=director.recent_cuts[:6],
+                connected_cameras=list(director.connected_cameras)
             )
             await websocket.send_text(telemetry.model_dump_json())
             await asyncio.sleep(0.8)

@@ -32,9 +32,21 @@
         <!-- Header Actions & Meta Status -->
         <div class="header-actions">
             <!-- Connect Live Webcam / OBS Virtual Cam -->
-            <button class="btn-studio-action" id="btnWebcamToggle" title="Connect local webcam or OBS Virtual Camera">
+            <button class="btn-studio-action" id="btnWebcamToggle" title="Connect local webcam or OBS Virtual Camera to CAM 1">
                 <span id="webcamIcon">📹</span>
                 <span id="webcamLabel">Connect Camera</span>
+            </button>
+
+            <!-- Share Screen / App Window into CAM 3 -->
+            <button class="btn-studio-action" id="btnScreenShareToggle" title="Share your screen or app window directly into CAM 3">
+                <span id="screenShareIcon">🖥️</span>
+                <span id="screenShareLabel">Share Screen</span>
+            </button>
+
+            <!-- Multi-Cam Ingest Guide -->
+            <button class="btn-studio-action" id="btnOpenMultiCamGuide" title="How to connect multiple cameras (OBS, USB, Phone)">
+                <span>🎛️</span>
+                <span>Multi-Cam Guide</span>
             </button>
 
             <!-- Export Hub Buttons -->
@@ -71,8 +83,9 @@
         </div>
     </header>
 
-    <!-- Hidden Video Element for Real Webcam Ingestion -->
+    <!-- Hidden Video Elements for Real Media Ingestion -->
     <video id="webcamVideoElement" autoplay muted playsinline style="display:none;"></video>
+    <video id="screenShareVideoElement" autoplay muted playsinline style="display:none;"></video>
 
     <!-- Main Workspace Container -->
     <main class="workspace-container">
@@ -307,6 +320,48 @@
                 <div class="payload-block">
                     <h4 class="payload-title">3. Meta Muse Voice Transcribe (Sub-Second Cadence & Emotion)</h4>
                     <pre class="json-code" id="codeMuseVoice"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Multi-Camera Ingest & Connection Guide Modal -->
+    <div class="meta-drawer-overlay" id="multiCamModalOverlay" style="display:none;">
+        <div class="meta-drawer-panel" style="max-width: 680px;">
+            <div class="drawer-header">
+                <div>
+                    <h3 class="drawer-title">🎛️ How to Connect Multiple Cameras in OmniDirector AI</h3>
+                    <p class="drawer-sub">Pro-grade multi-cam broadcasting setup using webcams, screens, and virtual cameras</p>
+                </div>
+                <button class="btn-close-drawer" id="btnCloseMultiCamGuide">✕</button>
+            </div>
+            <div class="drawer-body">
+                <div class="payload-block">
+                    <h4 class="payload-title">1. Camera 1 (Host Prime) — Your Primary Facecam</h4>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-top: 6px;">
+                        Click <strong>"Connect Camera"</strong> in the top toolbar to activate your integrated laptop webcam or USB face camera. OmniDirector will perform real-time face tracking to keep you centered in 9:16 vertical reels.
+                    </p>
+                </div>
+                <div class="payload-block">
+                    <h4 class="payload-title">2. Camera 3 (Screen & HUD) — Live Application / Window</h4>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-top: 6px;">
+                        Click <strong>"Share Screen"</strong> in the top toolbar to share your Chrome browser, VS Code, presentation, or gameplay window. The AI Director will automatically cut to your screen when active cursor or visual motion is detected!
+                    </p>
+                </div>
+                <div class="payload-block">
+                    <h4 class="payload-title">3. Camera 2 & 4 — OBS Virtual Camera, Second USB Cam, or Phone</h4>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-top: 6px;">
+                        You can connect multiple physical video feeds in Windows:
+                        <br>• <strong>OBS Virtual Camera</strong>: Start Virtual Camera in OBS to route Discord guests, Zoom, or secondary angles directly into OmniDirector.
+                        <br>• <strong>Phone as HD Webcam</strong>: Use free tools like <em>Camo</em> or <em>DroidCam</em> to turn your iPhone or Android phone into a studio reaction camera.
+                    </p>
+                </div>
+                <div class="payload-block">
+                    <h4 class="payload-title">4. Offline Camera Protection — Zero Phantom Cuts</h4>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-top: 6px;">
+                        Look at the <strong>MULTI-CAMERA INGEST MATRIX</strong> below the main screen. Each camera tile has a <strong>[🟢 LIVE / ⚪ OFFLINE]</strong> toggle. 
+                        If a camera is not plugged in, toggle it to <strong>OFFLINE</strong>. The Autonomous AI Director will <strong>never cut to an offline camera</strong>, staying locked on your live camera with dynamic focal framing!
+                    </p>
                 </div>
             </div>
         </div>

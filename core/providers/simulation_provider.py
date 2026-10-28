@@ -232,10 +232,29 @@ class SimulationOmniProvider(BaseOmniProvider):
         current_camera: str,
         recent_transcripts: List[TranscriptionResult],
         visual_activity: Dict[str, float],
-        duration_on_current_cam_sec: float
+        duration_on_current_cam_sec: float,
+        connected_cameras: Optional[List[str]] = None
     ) -> DirectorCutDecision:
         latest = recent_transcripts[-1] if recent_transcripts else None
         
+        # Determine online cameras
+        online_cams = connected_cameras if (connected_cameras and len(connected_cameras) > 0) else ["cam_host", "cam_wide", "cam_screen", "cam_reaction"]
+
+        # Ensure current camera is valid
+        if current_camera not in online_cams:
+            current_camera = online_cams[0]
+
+        # If only 1 camera is connected (e.g. Host Webcam), NEVER cut away to offline feeds!
+        if len(online_cams) <= 1:
+            return DirectorCutDecision(
+                selected_camera_id=online_cams[0],
+                transition_type="hold",
+                reasoning=f"Single Online Feed [{online_cams[0]}]: Autonomous Director maintaining steady focus on active live camera with dynamic kinetic centering.",
+                confidence=0.99,
+                is_climax_highlight=False,
+                model_version="Meta-Muse-Spark-LocalSim"
+            )
+
         # Guard minimum cut interval (e.g. 2.5s) to prevent jarring cuts
         if duration_on_current_cam_sec < 2.5:
             return DirectorCutDecision(
@@ -247,20 +266,21 @@ class SimulationOmniProvider(BaseOmniProvider):
                 model_version="Meta-Muse-Spark-LocalSim"
             )
 
-        # Climax moment detection: Switch to wide or split-screen
+        # Climax moment detection: Switch to wide or reaction if online
         if latest and latest.is_climax_moment:
-            target_cam = "cam_wide" if current_camera != "cam_wide" else "cam_reaction"
-            return DirectorCutDecision(
-                selected_camera_id=target_cam,
-                transition_type="smooth_dissolve",
-                reasoning=f"High vocal energy detected ({latest.energy_score:.2f}) with emotions {latest.detected_emotions}. Cutting to {target_cam} to frame full conversational dynamic.",
-                confidence=0.97,
-                is_climax_highlight=True,
-                model_version="Meta-Muse-Spark-LocalSim"
-            )
+            for cand in ["cam_wide", "cam_reaction", "cam_host"]:
+                if cand in online_cams and cand != current_camera:
+                    return DirectorCutDecision(
+                        selected_camera_id=cand,
+                        transition_type="smooth_dissolve",
+                        reasoning=f"High vocal energy detected ({latest.energy_score:.2f}) with emotions {latest.detected_emotions}. Cutting to online {cand} to frame full conversational dynamic.",
+                        confidence=0.97,
+                        is_climax_highlight=True,
+                        model_version="Meta-Muse-Spark-LocalSim"
+                    )
 
-        # Speaker handoff logic
-        if latest and latest.speaker_id == "guest" and current_camera != "cam_reaction":
+        # Speaker handoff logic: only switch to reaction if reaction cam is connected/online!
+        if latest and latest.speaker_id == "guest" and "cam_reaction" in online_cams and current_camera != "cam_reaction":
             return DirectorCutDecision(
                 selected_camera_id="cam_reaction",
                 transition_type="hard_cut",
@@ -270,9 +290,9 @@ class SimulationOmniProvider(BaseOmniProvider):
                 model_version="Meta-Muse-Spark-LocalSim"
             )
         
-        # Screen activity logic
+        # Screen activity logic: only switch to screen if screen cam is connected/online!
         screen_activity = visual_activity.get("cam_screen", 0.0)
-        if screen_activity > 0.65 and current_camera != "cam_screen":
+        if screen_activity > 0.65 and "cam_screen" in online_cams and current_camera != "cam_screen":
             return DirectorCutDecision(
                 selected_camera_id="cam_screen",
                 transition_type="hard_cut",
@@ -282,23 +302,25 @@ class SimulationOmniProvider(BaseOmniProvider):
                 model_version="Meta-Muse-Spark-LocalSim"
             )
 
-        # Natural rhythm refresh if held too long (> 9.0s)
+        # Natural rhythm refresh if held too long (> 9.0s) among available online cameras
         if duration_on_current_cam_sec > 9.0:
-            target = "cam_wide" if current_camera == "cam_host" else "cam_host"
-            return DirectorCutDecision(
-                selected_camera_id=target,
-                transition_type="smooth_dissolve",
-                reasoning=f"Shot duration on {current_camera} exceeded 9.0s. Refreshing audience perspective to maintain engagement.",
-                confidence=0.88,
-                is_climax_highlight=False,
-                model_version="Meta-Muse-Spark-LocalSim"
-            )
+            other_cams = [c for c in online_cams if c != current_camera]
+            if other_cams:
+                target = other_cams[0]
+                return DirectorCutDecision(
+                    selected_camera_id=target,
+                    transition_type="smooth_dissolve",
+                    reasoning=f"Shot duration on {current_camera} exceeded 9.0s. Refreshing perspective to online camera {target}.",
+                    confidence=0.88,
+                    is_climax_highlight=False,
+                    model_version="Meta-Muse-Spark-LocalSim"
+                )
 
         # Default hold
         return DirectorCutDecision(
             selected_camera_id=current_camera,
             transition_type="hold",
-            reasoning=f"Pacing nominal. Speaker {latest.speaker_id if latest else 'host'} remains in active delivery.",
+            reasoning=f"Pacing nominal on active camera {current_camera}. Host delivery steady.",
             confidence=0.90,
             is_climax_highlight=False,
             model_version="Meta-Muse-Spark-LocalSim"

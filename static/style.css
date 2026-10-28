@@ -705,6 +705,75 @@ body {
     background: var(--accent-live);
 }
 
+.cam-power-toggle {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    padding: 2px 6px;
+    border-radius: var(--radius-xs);
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+    background: rgba(15, 23, 42, 0.75);
+    color: #E2E8F0;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    transition: var(--transition);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cam-power-toggle:hover {
+    background: rgba(15, 23, 42, 0.95);
+    border-color: rgba(255, 255, 255, 0.35);
+    transform: scale(1.04);
+}
+
+.cam-power-toggle.online {
+    color: #34D399;
+}
+
+.cam-power-toggle.offline {
+    color: #94A3B8;
+    background: rgba(0, 0, 0, 0.85);
+}
+
+/* Offline Camera Slate */
+.cam-tile.is-offline {
+    opacity: 0.55;
+    border-style: dashed;
+    filter: grayscale(0.85);
+}
+
+.cam-tile.is-offline .cam-viewport-thumb {
+    background: repeating-linear-gradient(
+        45deg,
+        #11141A,
+        #11141A 10px,
+        #181E29 10px,
+        #181E29 20px
+    );
+}
+
+.offline-watermark {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: #64748B;
+    border: 1px dashed #475569;
+    padding: 3px 8px;
+    border-radius: var(--radius-xs);
+    background: rgba(15, 23, 42, 0.85);
+}
+
+.cam-source-tag {
+    font-size: 9px;
+    font-family: var(--font-mono);
+    color: var(--accent-meta);
+    margin-top: 1px;
+}
+
 .cam-tile-footer {
     padding: 8px 10px;
     display: flex;
@@ -725,6 +794,12 @@ body {
     font-family: var(--font-mono);
     text-transform: uppercase;
     color: var(--text-muted);
+}
+
+.btn-studio-action.screenshare-active {
+    background: #065F46;
+    color: #A7F3D0;
+    border-color: #059669;
 }
 
 /* --------------------------------------------------------------------------

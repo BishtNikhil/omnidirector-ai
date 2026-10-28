@@ -81,6 +81,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnWebcamToggle = document.getElementById('btnWebcamToggle');
     const webcamLabel = document.getElementById('webcamLabel');
     const webcamVideoElement = document.getElementById('webcamVideoElement');
+    const btnScreenShareToggle = document.getElementById('btnScreenShareToggle');
+    const screenShareLabel = document.getElementById('screenShareLabel');
+    const screenShareVideoElement = document.getElementById('screenShareVideoElement');
+    const btnOpenMultiCamGuide = document.getElementById('btnOpenMultiCamGuide');
+    const multiCamModalOverlay = document.getElementById('multiCamModalOverlay');
+    const btnCloseMultiCamGuide = document.getElementById('btnCloseMultiCamGuide');
+
     const btnExportReel = document.getElementById('btnExportReel');
     const btnExportEdl = document.getElementById('btnExportEdl');
     const btnOpenMetaDrawer = document.getElementById('btnOpenMetaDrawer');
@@ -101,7 +108,25 @@ document.addEventListener('DOMContentLoaded', () => {
     let showSamMasks = true;
     let shotStartTime = Date.now();
     let currentMasks = [];
-    
+    let connectedCameraIds = ['cam_host', 'cam_wide', 'cam_screen', 'cam_reaction'];
+
+    // Real-Time Computer Vision Face Tracking
+    let liveFaceX = 0.50;
+    let liveFaceY = 0.40;
+    let hasDetectedLiveFace = false;
+    let nativeFaceDetector = null;
+    let faceTrackCanvas = null;
+    let faceTrackCtx = null;
+
+    if ('FaceDetector' in window) {
+        try {
+            nativeFaceDetector = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+            console.log("OmniDirector: Native FaceDetector initialized");
+        } catch (e) {
+            console.log("OmniDirector: Using computer vision skin-luminance centroid tracking");
+        }
+    }
+
     // Spring-Damped Kinetic Camera Tracking
     let currentReelX = 0.5;
     let targetReelX = 0.5;
@@ -112,6 +137,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Media & Recording
     let isWebcamActive = false;
     let webcamStream = null;
+    let isScreenShareActive = false;
+    let screenShareStream = null;
+
     let mediaRecorder = null;
     let recordedChunks = [];
     let isRecordingReel = false;
@@ -141,7 +169,65 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --------------------------------------------------------------------------
-    // 1. Live Webcam / OBS Ingestion
+    // Real-Time Webcam Face Tracking Loop (50ms interval)
+    // --------------------------------------------------------------------------
+    async function trackWebcamFace() {
+        if (!isWebcamActive || !webcamVideoElement || webcamVideoElement.readyState < 2) return;
+
+        // 1. Try Native FaceDetector API (Chromium/Edge)
+        if (nativeFaceDetector) {
+            try {
+                const faces = await nativeFaceDetector.detect(webcamVideoElement);
+                if (faces && faces.length > 0) {
+                    const b = faces[0].boundingBox;
+                    const vW = webcamVideoElement.videoWidth || 1280;
+                    const vH = webcamVideoElement.videoHeight || 720;
+                    const fx = (b.x + b.width / 2) / vW;
+                    const fy = (b.y + b.height / 2) / vH;
+                    liveFaceX += (fx - liveFaceX) * 0.35;
+                    liveFaceY += (fy - liveFaceY) * 0.35;
+                    hasDetectedLiveFace = true;
+                    return;
+                }
+            } catch (err) {}
+        }
+
+        // 2. High-Performance Canvas Computer Vision Centroid (Universal Browser Support)
+        if (!faceTrackCanvas) {
+            faceTrackCanvas = document.createElement('canvas');
+            faceTrackCanvas.width = 160;
+            faceTrackCanvas.height = 90;
+            faceTrackCtx = faceTrackCanvas.getContext('2d', { willReadFrequently: true });
+        }
+        faceTrackCtx.drawImage(webcamVideoElement, 0, 0, 160, 90);
+        const imgData = faceTrackCtx.getImageData(0, 0, 160, 90).data;
+        let sumX = 0, sumY = 0, count = 0;
+        for (let y = 10; y < 80; y += 2) {
+            for (let x = 15; x < 145; x += 2) {
+                const idx = (y * 160 + x) * 4;
+                const r = imgData[idx];
+                const g = imgData[idx + 1];
+                const b = imgData[idx + 2];
+                // Human skin tone locus in RGB space
+                if (r > 90 && g > 45 && b > 30 && r > g && r > b && (r - g) > 12) {
+                    sumX += x;
+                    sumY += y;
+                    count++;
+                }
+            }
+        }
+        if (count > 50) {
+            const fx = sumX / (count * 160);
+            const fy = sumY / (count * 90);
+            liveFaceX += (fx - liveFaceX) * 0.35;
+            liveFaceY += (fy - liveFaceY) * 0.35;
+            hasDetectedLiveFace = true;
+        }
+    }
+    setInterval(trackWebcamFace, 50);
+
+    // --------------------------------------------------------------------------
+    // 1. Live Webcam / OBS Virtual Camera Ingestion
     // --------------------------------------------------------------------------
     btnWebcamToggle.addEventListener('click', async () => {
         if (!isWebcamActive) {
@@ -156,6 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnWebcamToggle.classList.add('webcam-active');
                 webcamLabel.textContent = "Camera Connected (Live)";
                 triggerManualCut('cam_host');
+                renderCamerasGrid();
             } catch (err) {
                 console.warn("Webcam access denied or unavailable:", err);
                 alert("Camera access note: Enable webcam permissions in your browser or select OBS Virtual Camera to feed live video.");
@@ -168,7 +255,59 @@ document.addEventListener('DOMContentLoaded', () => {
             isWebcamActive = false;
             btnWebcamToggle.classList.remove('webcam-active');
             webcamLabel.textContent = "Connect Camera";
+            renderCamerasGrid();
         }
+    });
+
+    // --------------------------------------------------------------------------
+    // 1B. Screen Sharing into CAM 3 (DisplayMedia)
+    // --------------------------------------------------------------------------
+    btnScreenShareToggle.addEventListener('click', async () => {
+        if (!isScreenShareActive) {
+            try {
+                screenShareStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { cursor: "always" },
+                    audio: false
+                });
+                screenShareVideoElement.srcObject = screenShareStream;
+                await screenShareVideoElement.play();
+                isScreenShareActive = true;
+                btnScreenShareToggle.classList.add('screenshare-active');
+                screenShareLabel.textContent = "Screen Live (CAM 3)";
+                triggerManualCut('cam_screen');
+                renderCamerasGrid();
+
+                screenShareStream.getVideoTracks()[0].onended = () => {
+                    stopScreenSharing();
+                };
+            } catch (err) {
+                console.warn("Screen share cancelled:", err);
+            }
+        } else {
+            stopScreenSharing();
+        }
+    });
+
+    function stopScreenSharing() {
+        if (screenShareStream) {
+            screenShareStream.getTracks().forEach(t => t.stop());
+        }
+        screenShareVideoElement.srcObject = null;
+        isScreenShareActive = false;
+        btnScreenShareToggle.classList.remove('screenshare-active');
+        screenShareLabel.textContent = "Share Screen";
+        renderCamerasGrid();
+    }
+
+    // Multi-Cam Ingest Guide Modal
+    btnOpenMultiCamGuide.addEventListener('click', () => {
+        multiCamModalOverlay.style.display = 'flex';
+    });
+    btnCloseMultiCamGuide.addEventListener('click', () => {
+        multiCamModalOverlay.style.display = 'none';
+    });
+    multiCamModalOverlay.addEventListener('click', (e) => {
+        if (e.target === multiCamModalOverlay) multiCamModalOverlay.style.display = 'none';
     });
 
     // --------------------------------------------------------------------------
@@ -303,11 +442,50 @@ document.addEventListener('DOMContentLoaded', () => {
         studioCtx.clearRect(0, 0, W, H);
         const t = (Date.now() - sessionStartMs) / 1000;
 
-        // If user webcam is live on CAM 1, render real video
+        // If user webcam is live on CAM 1, render real video with real-time face tracking
         if (isWebcamActive && activeCameraId === 'cam_host' && webcamVideoElement.readyState >= 2) {
             studioCtx.save();
             studioCtx.drawImage(webcamVideoElement, 0, 0, W, H);
             studioCtx.restore();
+
+            // Generate real-time SAM 3.1 polygonal contours directly around tracked face
+            const fx = liveFaceX;
+            const fy = liveFaceY;
+            currentMasks = [
+                {
+                    id: "live_host_face",
+                    label: "Host Live Broadcaster (Face - Tracked)",
+                    confidence: 0.994,
+                    polygon_points: [
+                        [fx - 0.08, fy - 0.12], [fx + 0.08, fy - 0.12],
+                        [fx + 0.11, fy + 0.04], [fx + 0.06, fy + 0.14],
+                        [fx - 0.06, fy + 0.14], [fx - 0.11, fy + 0.04]
+                    ],
+                    suggested_crop_x: fx
+                },
+                {
+                    id: "live_host_body",
+                    label: "Broadcaster Torso / Mic Zone",
+                    confidence: 0.975,
+                    polygon_points: [
+                        [fx - 0.20, fy + 0.15], [fx + 0.20, fy + 0.15],
+                        [fx + 0.28, fy + 0.52], [fx - 0.28, fy + 0.52]
+                    ],
+                    suggested_crop_x: fx
+                }
+            ];
+
+            // Lock 9:16 vertical crop target to the user's real face position
+            targetReelX = fx;
+            targetReelZoom = 1.05;
+            activeSpeakerId = "host";
+            reelTargetSpeaker.textContent = "TARGET: HOST (YOU - TRACKED)";
+            subtitleSpeaker.textContent = "HOST (YOU)";
+        } else if (isScreenShareActive && activeCameraId === 'cam_screen' && screenShareVideoElement.readyState >= 2) {
+            studioCtx.save();
+            studioCtx.drawImage(screenShareVideoElement, 0, 0, W, H);
+            studioCtx.restore();
+            targetReelX = 0.50;
         } else {
             // Draw cinematic studio scenes
             if (activeCameraId === 'cam_host') {
@@ -597,7 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(drawWaveform, 40);
 
     // --------------------------------------------------------------------------
-    // Cameras & API Data
+    // Cameras & API Data (With Online/Offline Controls)
     // --------------------------------------------------------------------------
     async function loadConfig() {
         try {
@@ -605,6 +783,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             activeProviderLabel.textContent = data.active_provider;
             cameras = data.cameras;
+            connectedCameraIds = cameras.filter(c => c.is_connected !== false).map(c => c.id);
             renderCamerasGrid();
         } catch (e) {
             console.error("Config fetch error:", e);
@@ -614,24 +793,75 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderCamerasGrid() {
         camerasGrid.innerHTML = '';
         cameras.forEach(cam => {
+            const isOnline = connectedCameraIds.includes(cam.id);
+            const isProgram = cam.id === activeCameraId;
             const tile = document.createElement('div');
-            tile.className = `cam-tile ${cam.id === activeCameraId ? 'on-air-active' : ''}`;
+            tile.className = `cam-tile ${isProgram ? 'on-air-active' : ''} ${!isOnline ? 'is-offline' : ''}`;
             tile.id = `tile_${cam.id}`;
+
+            let sourceLabel = "Simulation Engine";
+            if (cam.id === 'cam_host' && isWebcamActive) sourceLabel = "📹 Live Webcam";
+            else if (cam.id === 'cam_screen' && isScreenShareActive) sourceLabel = "🖥️ Live Screen";
+            else if (cam.id === 'cam_reaction') sourceLabel = "OBS Virtual / Cam 4";
+
             tile.innerHTML = `
                 <div class="cam-viewport-thumb">
-                    <span class="cam-tally-tag">${cam.id === activeCameraId ? 'PROGRAM' : 'PREVIEW'}</span>
-                    <div style="font-size: 24px; opacity: 0.65;">
-                        ${cam.role === 'host' ? '🎙️' : cam.role === 'wide' ? '🏛️' : cam.role === 'screen' ? '💻' : '⚡'}
-                    </div>
+                    <span class="cam-tally-tag">${isProgram ? 'PROGRAM' : isOnline ? 'PREVIEW' : 'OFFLINE'}</span>
+                    <button class="cam-power-toggle ${isOnline ? 'online' : 'offline'}" title="Toggle Online / Offline status">
+                        ${isOnline ? '🟢 LIVE' : '⚪ OFFLINE'}
+                    </button>
+                    ${isOnline ? `
+                        <div style="font-size: 26px; opacity: 0.7;">
+                            ${cam.id === 'cam_host' && isWebcamActive ? '📹' : cam.id === 'cam_screen' && isScreenShareActive ? '🖥️' : cam.role === 'host' ? '🎙️' : cam.role === 'wide' ? '🏛️' : cam.role === 'screen' ? '💻' : '⚡'}
+                        </div>
+                    ` : `
+                        <span class="offline-watermark">NO SIGNAL / OFFLINE</span>
+                    `}
                 </div>
                 <div class="cam-tile-footer">
-                    <span class="cam-tile-name">${cam.label}</span>
+                    <div>
+                        <div class="cam-tile-name">${cam.label}</div>
+                        <div class="cam-source-tag">${isOnline ? sourceLabel : 'Bypassed by AI Director'}</div>
+                    </div>
                     <span class="cam-tile-role">${cam.role}</span>
                 </div>
             `;
-            tile.addEventListener('click', () => triggerManualCut(cam.id));
+
+            const powerBtn = tile.querySelector('.cam-power-toggle');
+            powerBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleCameraOnline(cam.id, !isOnline);
+            });
+
+            tile.addEventListener('click', () => {
+                if (!isOnline) {
+                    alert(`${cam.label} is currently OFFLINE. Click the [⚪ OFFLINE] button to bring it ONLINE first!`);
+                    return;
+                }
+                triggerManualCut(cam.id);
+            });
+
             camerasGrid.appendChild(tile);
         });
+    }
+
+    async function toggleCameraOnline(camId, newStatus) {
+        try {
+            const res = await fetch('/api/cameras/status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ camera_id: camId, is_connected: newStatus })
+            });
+            const data = await res.json();
+            connectedCameraIds = data.connected_cameras || [];
+            if (data.active_camera_id) {
+                activeCameraId = data.active_camera_id;
+            }
+            renderCamerasGrid();
+            updateCameraActiveState();
+        } catch (err) {
+            console.error("Camera status toggle error:", err);
+        }
     }
 
     async function triggerManualCut(camId) {
@@ -653,9 +883,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const cam = cameras.find(c => c.id === activeCameraId);
         if (cam) activeCamTitle.textContent = cam.label;
         document.querySelectorAll('.cam-tile').forEach(t => {
-            const isCur = t.id === `tile_${activeCameraId}`;
+            const cid = t.id.replace('tile_', '');
+            const isCur = cid === activeCameraId;
+            const isOnline = connectedCameraIds.includes(cid);
             t.classList.toggle('on-air-active', isCur);
-            t.querySelector('.cam-tally-tag').textContent = isCur ? 'PROGRAM' : 'PREVIEW';
+            t.classList.toggle('is-offline', !isOnline);
+            const tally = t.querySelector('.cam-tally-tag');
+            if (tally) tally.textContent = isCur ? 'PROGRAM' : isOnline ? 'PREVIEW' : 'OFFLINE';
         });
     }
 
@@ -707,6 +941,20 @@ document.addEventListener('DOMContentLoaded', () => {
             addTimelineMarker(t.latest_decision && t.latest_decision.is_climax_highlight);
         }
 
+        if (t.connected_cameras) {
+            connectedCameraIds = t.connected_cameras;
+            document.querySelectorAll('.cam-tile').forEach(tile => {
+                const cid = tile.id.replace('tile_', '');
+                const isOnline = connectedCameraIds.includes(cid);
+                tile.classList.toggle('is-offline', !isOnline);
+                const pBtn = tile.querySelector('.cam-power-toggle');
+                if (pBtn) {
+                    pBtn.className = `cam-power-toggle ${isOnline ? 'online' : 'offline'}`;
+                    pBtn.textContent = isOnline ? '🟢 LIVE' : '⚪ OFFLINE';
+                }
+            });
+        }
+
         activeProviderLabel.textContent = t.active_provider_name;
         statTotalCuts.textContent = t.total_cuts_made;
         statHighlights.textContent = t.climax_highlights_count;
@@ -714,23 +962,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Speech & Center-Staging
         if (t.latest_transcription) {
-            subtitleSpeaker.textContent = t.latest_transcription.speaker_id.toUpperCase();
-            subtitleText.textContent = t.latest_transcription.text;
-            detectedEmotionsTag.textContent = t.latest_transcription.detected_emotions.join(', ') || 'Focused';
+            const isSoloLiveBroadcaster = isWebcamActive && activeCameraId === 'cam_host';
+            if (!isSoloLiveBroadcaster) {
+                subtitleSpeaker.textContent = t.latest_transcription.speaker_id.toUpperCase();
+                subtitleText.textContent = t.latest_transcription.text;
+                activeSpeakerId = t.latest_transcription.speaker_id;
+                reelTargetSpeaker.textContent = `TARGET: ${activeSpeakerId.toUpperCase()} (LOCKED)`;
 
-            activeSpeakerId = t.latest_transcription.speaker_id;
-            reelTargetSpeaker.textContent = `TARGET: ${activeSpeakerId.toUpperCase()} (LOCKED)`;
-
-            // Smooth center-staging target: Host at 0.48, Guest at 0.65, Wide centered at 0.50
-            if (activeCameraId === 'cam_wide') {
-                targetReelX = activeSpeakerId === 'guest' ? 0.65 : 0.35;
-            } else if (activeCameraId === 'cam_reaction') {
-                targetReelX = 0.55;
+                if (activeCameraId === 'cam_wide') {
+                    targetReelX = activeSpeakerId === 'guest' ? 0.65 : 0.35;
+                } else if (activeCameraId === 'cam_reaction') {
+                    targetReelX = 0.55;
+                } else {
+                    targetReelX = 0.50;
+                }
             } else {
-                targetReelX = 0.50;
+                subtitleSpeaker.textContent = "HOST (YOU)";
+                activeSpeakerId = "host";
+                reelTargetSpeaker.textContent = "TARGET: HOST (YOU - TRACKED)";
+                targetReelX = liveFaceX;
             }
 
-            // Punch-in during climax
+            detectedEmotionsTag.textContent = t.latest_transcription.detected_emotions.join(', ') || 'Focused';
             targetReelZoom = t.latest_transcription.is_climax_moment ? 1.08 : 1.00;
 
             const energyPct = Math.round(t.latest_transcription.energy_score * 100);

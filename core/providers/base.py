@@ -76,7 +76,8 @@ class BaseOmniProvider(ABC):
         current_camera: str,
         recent_transcripts: List[TranscriptionResult],
         visual_activity: Dict[str, float],
-        duration_on_current_cam_sec: float
+        duration_on_current_cam_sec: float,
+        connected_cameras: Optional[List[str]] = None
     ) -> DirectorCutDecision:
         """Run Meta Muse Spark reasoning to arbitrate optimal camera switch."""
         pass

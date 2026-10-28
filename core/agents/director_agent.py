@@ -31,11 +31,13 @@ class StreamTelemetry(BaseModel):
     kinetic_crop_y: float = 0.5
     climax_highlights_count: int = 0
     recent_cuts_history: List[Dict[str, Any]] = Field(default_factory=list)
+    connected_cameras: List[str] = Field(default_factory=list)
 
 class DirectorAgent:
     def __init__(self, provider: Optional[BaseOmniProvider] = None):
         self.provider = provider or get_active_provider()
-        self.active_camera = "cam_host"
+        self.connected_cameras: List[str] = [c.id for c in config.cameras if getattr(c, 'is_connected', True)]
+        self.active_camera = self.connected_cameras[0] if self.connected_cameras else "cam_host"
         self.last_cut_timestamp = time.time()
         self.total_cuts = 0
         self.is_auto_directing = True
@@ -88,9 +90,40 @@ class DirectorAgent:
         })
         return decision
 
+    def set_camera_status(self, camera_id: str, is_connected: bool) -> List[str]:
+        """Toggles a camera's online/offline connectivity in the multi-camera matrix."""
+        for c in config.cameras:
+            if c.id == camera_id:
+                c.is_connected = is_connected
+
+        if is_connected:
+            if camera_id not in self.connected_cameras:
+                self.connected_cameras.append(camera_id)
+        else:
+            if camera_id in self.connected_cameras:
+                self.connected_cameras.remove(camera_id)
+            if self.active_camera == camera_id and self.connected_cameras:
+                self.active_camera = self.connected_cameras[0]
+                self.last_cut_timestamp = time.time()
+                self.total_cuts += 1
+                self.recent_cuts.insert(0, {
+                    "timestamp": time.strftime("%H:%M:%S"),
+                    "camera": self.get_camera_label(self.active_camera),
+                    "reason": f"Signal lost on {camera_id}. Emergency failover to online camera.",
+                    "type": "Emergency Failover"
+                })
+
+        return self.connected_cameras
+
     async def step(self) -> StreamTelemetry:
         """Single heartbeat cycle of the autonomous director."""
         now = time.time()
+
+        # Enforce that active camera is an online camera
+        if self.connected_cameras and self.active_camera not in self.connected_cameras:
+            self.active_camera = self.connected_cameras[0]
+            self.last_cut_timestamp = now
+
         duration_on_cam = now - self.last_cut_timestamp
 
         # 1. Perception: Ingest audio transcript beat
@@ -114,13 +147,16 @@ class DirectorAgent:
                 current_camera=self.active_camera,
                 recent_transcripts=self.recent_transcripts,
                 visual_activity=self.visual_activity,
-                duration_on_current_cam_sec=duration_on_cam
+                duration_on_current_cam_sec=duration_on_cam,
+                connected_cameras=self.connected_cameras
             )
             self.latest_decision = decision
 
-            if decision.selected_camera_id != self.active_camera and decision.transition_type != "hold":
+            # Enforce that AI cannot cut to an offline camera
+            target_cam = decision.selected_camera_id
+            if target_cam in self.connected_cameras and target_cam != self.active_camera and decision.transition_type != "hold":
                 prev_cam = self.active_camera
-                self.active_camera = decision.selected_camera_id
+                self.active_camera = target_cam
                 self.last_cut_timestamp = now
                 self.total_cuts += 1
                 
@@ -151,7 +187,8 @@ class DirectorAgent:
             kinetic_crop_x=round(self.kinetic_x, 3),
             kinetic_crop_y=round(self.kinetic_y, 3),
             climax_highlights_count=len(self.highlights),
-            recent_cuts_history=self.recent_cuts[:6]
+            recent_cuts_history=self.recent_cuts[:6],
+            connected_cameras=list(self.connected_cameras)
         )
 
 # Global Director Instance

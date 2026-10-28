@@ -12,6 +12,7 @@ class CameraDefinition(BaseModel):
     fov_degrees: int = 75
     resolution: str = "1080p60"
     description: str
+    is_connected: bool = True
 
 class DirectorPolicy(BaseModel):
     min_cut_duration_sec: float = Field(default=2.5, description="Prevent frantic micro-switching")

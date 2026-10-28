@@ -90,13 +90,14 @@ class MetaModelAPIProvider(BaseOmniProvider):
         current_camera: str,
         recent_transcripts: List[TranscriptionResult],
         visual_activity: Dict[str, float],
-        duration_on_current_cam_sec: float
+        duration_on_current_cam_sec: float,
+        connected_cameras: Optional[List[str]] = None
     ) -> DirectorCutDecision:
         """Call Meta Muse Spark for structured directorial arbitration."""
         if not self.api_key or self.api_key.startswith("your_"):
             from core.providers.simulation_provider import SimulationOmniProvider
             return await SimulationOmniProvider().evaluate_directorial_cut(
-                current_camera, recent_transcripts, visual_activity, duration_on_current_cam_sec
+                current_camera, recent_transcripts, visual_activity, duration_on_current_cam_sec, connected_cameras
             )
 
         try:
@@ -134,5 +135,5 @@ class MetaModelAPIProvider(BaseOmniProvider):
         except Exception:
             from core.providers.simulation_provider import SimulationOmniProvider
             return await SimulationOmniProvider().evaluate_directorial_cut(
-                current_camera, recent_transcripts, visual_activity, duration_on_current_cam_sec
+                current_camera, recent_transcripts, visual_activity, duration_on_current_cam_sec, connected_cameras
             )
