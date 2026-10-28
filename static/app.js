@@ -372,15 +372,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Minimalist Label Tag
             const labelX = m.polygon_points[0][0] * W;
-            const labelY = Math.max(24, m.polygon_points[0][1] * H - 8);
+            const labelY = Math.max(26, m.polygon_points[0][1] * H - 8);
 
-            ctx.font = '600 11px Outfit, sans-serif';
+            ctx.font = '600 12px Inter, sans-serif';
             const textWidth = ctx.measureText(m.label).width;
 
             ctx.fillStyle = '#FFFFFF';
-            ctx.shadowColor = 'rgba(0,0,0,0.1)';
-            ctx.shadowBlur = 4;
-            ctx.fillRect(labelX - 4, labelY - 14, textWidth + 8, 18);
+            ctx.shadowColor = 'rgba(0,0,0,0.12)';
+            ctx.shadowBlur = 6;
+            ctx.fillRect(labelX - 4, labelY - 15, textWidth + 10, 20);
             ctx.shadowBlur = 0;
 
             ctx.strokeStyle = style.stroke;
