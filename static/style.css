@@ -1205,6 +1205,12 @@ body {
     border-color: var(--accent-sam-border);
 }
 
+.btn-studio-action.video-file-active {
+    background: var(--accent-gold-bg);
+    color: var(--accent-gold);
+    border-color: var(--accent-gold-border);
+}
+
 .btn-studio-action.meta-action {
     background: var(--accent-meta-bg);
     color: var(--accent-meta);

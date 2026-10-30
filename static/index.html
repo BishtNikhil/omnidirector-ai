@@ -43,6 +43,13 @@
                 <span id="screenShareLabel">Share Screen</span>
             </button>
 
+            <!-- Load Local Video File / Podcast Clip into CAM 2 (Wide) -->
+            <button class="btn-studio-action" id="btnLoadVideoFile" title="Load local MP4/WebM podcast or interview file into CAM 2 (Studio Wide)">
+                <span id="loadVideoIcon">📂</span>
+                <span id="loadVideoLabel">Load Video File</span>
+            </button>
+            <input type="file" id="localVideoFileInput" accept="video/mp4,video/webm,video/quicktime,video/mkv" style="display:none;">
+
             <!-- Multi-Cam Ingest Guide -->
             <button class="btn-studio-action" id="btnOpenMultiCamGuide" title="How to connect multiple cameras (OBS, USB, Phone)">
                 <span>🎛️</span>
@@ -96,6 +103,7 @@
     <!-- Hidden Video Elements for Real Media Ingestion -->
     <video id="webcamVideoElement" autoplay muted playsinline style="display:none;"></video>
     <video id="screenShareVideoElement" autoplay muted playsinline style="display:none;"></video>
+    <video id="fileVideoElement" autoplay loop muted playsinline style="display:none;"></video>
 
     <!-- Main Workspace Container -->
     <main class="workspace-container">

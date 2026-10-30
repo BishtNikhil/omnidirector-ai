@@ -86,6 +86,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnScreenShareToggle = document.getElementById('btnScreenShareToggle');
     const screenShareLabel = document.getElementById('screenShareLabel');
     const screenShareVideoElement = document.getElementById('screenShareVideoElement');
+    const btnLoadVideoFile = document.getElementById('btnLoadVideoFile');
+    const loadVideoLabel = document.getElementById('loadVideoLabel');
+    const localVideoFileInput = document.getElementById('localVideoFileInput');
+    const fileVideoElement = document.getElementById('fileVideoElement');
     const btnOpenMultiCamGuide = document.getElementById('btnOpenMultiCamGuide');
     const multiCamModalOverlay = document.getElementById('multiCamModalOverlay');
     const btnCloseMultiCamGuide = document.getElementById('btnCloseMultiCamGuide');
@@ -141,6 +145,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let webcamStream = null;
     let isScreenShareActive = false;
     let screenShareStream = null;
+    let isFileVideoActive = false;
+    let fileVideoTargetCam = 'cam_wide';
 
     let mediaRecorder = null;
     let recordedChunks = [];
@@ -171,19 +177,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --------------------------------------------------------------------------
-    // Real-Time Webcam Face Tracking Loop (50ms interval)
+    // Real-Time Computer Vision Face Tracking Loop (50ms interval)
     // --------------------------------------------------------------------------
-    async function trackWebcamFace() {
-        if (!isWebcamActive || !webcamVideoElement || webcamVideoElement.readyState < 2) return;
+    async function trackVideoSource(videoElem) {
+        if (!videoElem || videoElem.readyState < 2) return;
 
         // 1. Try Native FaceDetector API (Chromium/Edge)
         if (nativeFaceDetector) {
             try {
-                const faces = await nativeFaceDetector.detect(webcamVideoElement);
+                const faces = await nativeFaceDetector.detect(videoElem);
                 if (faces && faces.length > 0) {
                     const b = faces[0].boundingBox;
-                    const vW = webcamVideoElement.videoWidth || 1280;
-                    const vH = webcamVideoElement.videoHeight || 720;
+                    const vW = videoElem.videoWidth || 1280;
+                    const vH = videoElem.videoHeight || 720;
                     const fx = (b.x + b.width / 2) / vW;
                     const fy = (b.y + b.height / 2) / vH;
                     liveFaceX += (fx - liveFaceX) * 0.35;
@@ -201,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
             faceTrackCanvas.height = 90;
             faceTrackCtx = faceTrackCanvas.getContext('2d', { willReadFrequently: true });
         }
-        faceTrackCtx.drawImage(webcamVideoElement, 0, 0, 160, 90);
+        faceTrackCtx.drawImage(videoElem, 0, 0, 160, 90);
         const imgData = faceTrackCtx.getImageData(0, 0, 160, 90).data;
         let sumX = 0, sumY = 0, count = 0;
         for (let y = 10; y < 80; y += 2) {
@@ -224,6 +230,14 @@ document.addEventListener('DOMContentLoaded', () => {
             liveFaceX += (fx - liveFaceX) * 0.35;
             liveFaceY += (fy - liveFaceY) * 0.35;
             hasDetectedLiveFace = true;
+        }
+    }
+
+    async function trackWebcamFace() {
+        if (isWebcamActive && activeCameraId === 'cam_host') {
+            await trackVideoSource(webcamVideoElement);
+        } else if (isFileVideoActive && activeCameraId === fileVideoTargetCam) {
+            await trackVideoSource(fileVideoElement);
         }
     }
     setInterval(trackWebcamFace, 50);
@@ -299,6 +313,45 @@ document.addEventListener('DOMContentLoaded', () => {
         btnScreenShareToggle.classList.remove('screenshare-active');
         screenShareLabel.textContent = "Share Screen";
         renderCamerasGrid();
+    }
+
+    // --------------------------------------------------------------------------
+    // 1C. Raw Video / Podcast File Ingestion (MP4/WebM)
+    // --------------------------------------------------------------------------
+    if (btnLoadVideoFile && localVideoFileInput) {
+        btnLoadVideoFile.addEventListener('click', () => {
+            if (!isFileVideoActive) {
+                localVideoFileInput.click();
+            } else {
+                fileVideoElement.pause();
+                fileVideoElement.src = '';
+                isFileVideoActive = false;
+                btnLoadVideoFile.classList.remove('video-file-active');
+                loadVideoLabel.textContent = "Load Video File";
+                renderCamerasGrid();
+            }
+        });
+
+        localVideoFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const fileUrl = URL.createObjectURL(file);
+            fileVideoElement.src = fileUrl;
+            fileVideoElement.loop = true;
+            fileVideoElement.muted = true;
+            try {
+                await fileVideoElement.play();
+                isFileVideoActive = true;
+                btnLoadVideoFile.classList.add('video-file-active');
+                const cleanName = file.name.length > 18 ? file.name.substring(0, 15) + '...' : file.name;
+                loadVideoLabel.textContent = `Playing: ${cleanName}`;
+                triggerManualCut(fileVideoTargetCam);
+                renderCamerasGrid();
+            } catch (err) {
+                console.error("Video file playback error:", err);
+                alert("Could not play selected video file. Please ensure it's a standard MP4 or WebM video.");
+            }
+        });
     }
 
     // Multi-Cam Ingest Guide Modal
@@ -509,6 +562,30 @@ document.addEventListener('DOMContentLoaded', () => {
             activeSpeakerId = "host";
             reelTargetSpeaker.textContent = "TARGET: HOST (YOU - TRACKED)";
             subtitleSpeaker.textContent = "HOST (YOU)";
+        } else if (isFileVideoActive && activeCameraId === fileVideoTargetCam && fileVideoElement.readyState >= 2) {
+            studioCtx.save();
+            studioCtx.drawImage(fileVideoElement, 0, 0, W, H);
+            studioCtx.restore();
+
+            const fx = liveFaceX;
+            const fy = liveFaceY;
+            currentMasks = [
+                {
+                    id: "podcast_face",
+                    label: "Podcast Subject (Face - Tracked)",
+                    confidence: 0.988,
+                    polygon_points: [
+                        [fx - 0.07, fy - 0.11], [fx + 0.07, fy - 0.11],
+                        [fx + 0.10, fy + 0.03], [fx + 0.05, fy + 0.13],
+                        [fx - 0.05, fy + 0.13], [fx - 0.10, fy + 0.03]
+                    ],
+                    suggested_crop_x: fx
+                }
+            ];
+            targetReelX = fx;
+            targetReelZoom = 1.05;
+            reelTargetSpeaker.textContent = "TARGET: PODCAST (TRACKED)";
+            subtitleSpeaker.textContent = "PODCAST (LIVE STREAM)";
         } else if (isScreenShareActive && activeCameraId === 'cam_screen' && screenShareVideoElement.readyState >= 2) {
             studioCtx.save();
             studioCtx.drawImage(screenShareVideoElement, 0, 0, W, H);
@@ -835,6 +912,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let sourceLabel = "Simulation Engine";
             if (cam.id === 'cam_host' && isWebcamActive) sourceLabel = "📹 Live Webcam";
+            else if (cam.id === fileVideoTargetCam && isFileVideoActive) sourceLabel = "📂 Local Video Stream";
             else if (cam.id === 'cam_screen' && isScreenShareActive) sourceLabel = "🖥️ Live Screen";
             else if (cam.id === 'cam_reaction') sourceLabel = "OBS Virtual / Cam 4";
 
@@ -846,7 +924,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </button>
                     ${isOnline ? `
                         <div style="font-size: 26px; opacity: 0.7;">
-                            ${cam.id === 'cam_host' && isWebcamActive ? '📹' : cam.id === 'cam_screen' && isScreenShareActive ? '🖥️' : cam.role === 'host' ? '🎙️' : cam.role === 'wide' ? '🏛️' : cam.role === 'screen' ? '💻' : '⚡'}
+                            ${cam.id === 'cam_host' && isWebcamActive ? '📹' : cam.id === fileVideoTargetCam && isFileVideoActive ? '🎞️' : cam.id === 'cam_screen' && isScreenShareActive ? '🖥️' : cam.role === 'host' ? '🎙️' : cam.role === 'wide' ? '🏛️' : cam.role === 'screen' ? '💻' : '⚡'}
                         </div>
                     ` : `
                         <span class="offline-watermark">NO SIGNAL / OFFLINE</span>
