@@ -100,18 +100,37 @@ class MetaModelAPIProvider(BaseOmniProvider):
                 current_camera, recent_transcripts, visual_activity, duration_on_current_cam_sec, connected_cameras
             )
 
+        online_cams = connected_cameras if (connected_cameras and len(connected_cameras) > 0) else ["cam_host", "cam_wide", "cam_screen", "cam_reaction"]
+
+        if len(online_cams) <= 1:
+            return DirectorCutDecision(
+                selected_camera_id=online_cams[0],
+                transition_type="hold",
+                reasoning=f"Single Online Stream [{online_cams[0]}]: Meta Muse Spark maintaining steady focus on active live camera.",
+                confidence=0.99,
+                is_climax_highlight=False,
+                model_version=f"{config.meta_model_name}@MetaCloud"
+            )
+
         try:
+            latest_dialogue = recent_transcripts[-1].text if recent_transcripts else "Host opening delivery"
             prompt = (
-                f"You are the executive director of a 4-camera live broadcast. "
+                f"You are the executive director of a live 4-camera broadcast studio. "
+                f"Available Online Cameras: {', '.join(online_cams)}. "
                 f"Current camera: {current_camera} (active for {duration_on_current_cam_sec:.1f}s). "
-                f"Recent speech: {recent_transcripts[-1].text if recent_transcripts else 'None'}. "
-                f"Decide whether to hold or cut to a new camera, and explain your reasoning."
+                f"Recent speech: \"{latest_dialogue}\". "
+                f"Pacing rule: Only switch cameras if the shot has been held for over 2.5 seconds or speaker changes. "
+                f"Choose next camera from ({', '.join(online_cams)}) or HOLD on {current_camera}. "
+                f"Format: 'DECISION: [cam_id] | REASON: [brief reasoning]'"
             )
             resp = await self.client.post(
                 f"{self.base_url}/chat/completions",
                 json={
-                    "model": "muse-spark",
-                    "messages": [{"role": "user", "content": prompt}],
+                    "model": config.meta_model_name,
+                    "messages": [
+                        {"role": "system", "content": "You are Meta Muse Spark, an expert autonomous live broadcast director. Respond concisely."},
+                        {"role": "user", "content": prompt}
+                    ],
                     "temperature": 0.2
                 }
             )
@@ -119,18 +138,19 @@ class MetaModelAPIProvider(BaseOmniProvider):
             reasoning = data["choices"][0]["message"]["content"]
             # Parse decision
             target_cam = current_camera
-            for c in ["cam_host", "cam_wide", "cam_screen", "cam_reaction"]:
-                if c in reasoning and c != current_camera:
+            for c in online_cams:
+                if f"DECISION: {c}" in reasoning or f"DECISION: [{c}]" in reasoning or c in reasoning.lower():
                     target_cam = c
                     break
 
+            is_hold = "HOLD" in reasoning.upper() or target_cam == current_camera
             return DirectorCutDecision(
                 selected_camera_id=target_cam,
-                transition_type="smooth_dissolve" if "dissolve" in reasoning else "hard_cut",
-                reasoning=reasoning,
-                confidence=0.96,
-                is_climax_highlight="climax" in reasoning.lower(),
-                model_version="Meta-Muse-Spark-Cloud"
+                transition_type="hold" if is_hold else "smooth_dissolve" if "dissolve" in reasoning.lower() else "hard_cut",
+                reasoning=reasoning[:240] if reasoning else f"Meta Muse Spark pacing nominal on {target_cam}.",
+                confidence=0.98,
+                is_climax_highlight="climax" in reasoning.lower() or "punchline" in reasoning.lower(),
+                model_version=f"{config.meta_model_name}@MetaCloud"
             )
         except Exception:
             from core.providers.simulation_provider import SimulationOmniProvider

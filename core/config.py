@@ -4,6 +4,10 @@ OmniDirector AI — Core Configuration & Environment Matrix
 import os
 from typing import Dict, Any, List
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
+
+# Load local .env credentials
+load_dotenv()
 
 class CameraDefinition(BaseModel):
     id: str
@@ -29,12 +33,17 @@ class OmniConfig(BaseModel):
     
     # Meta Model API
     meta_api_key: str = os.getenv("META_MODEL_API_KEY", "")
-    meta_base_url: str = os.getenv("META_MODEL_BASE_URL", "https://dev.meta.ai/api/v1")
+    meta_base_url: str = os.getenv("META_MODEL_BASE_URL", "https://api.meta.ai/v1")
+    meta_model_name: str = os.getenv("META_MODEL_NAME", "muse-spark-1.1")
     
     # Baseten Inference (Muse Spark Open)
     baseten_api_key: str = os.getenv("BASETEN_API_KEY", "")
+    baseten_base_url: str = os.getenv("BASETEN_BASE_URL", "https://inference.baseten.co/v1")
     baseten_model_id: str = os.getenv("BASETEN_MODEL_ID", "meta-models/muse-spark-open-1026")
     
+    # Provider Selection
+    primary_provider: str = os.getenv("DIRECTOR_PRIMARY_PROVIDER", "baseten")
+
     # Fallback Mode
     enable_simulation: bool = os.getenv("ENABLE_LOCAL_SIMULATION_FALLBACK", "true").lower() in ("true", "1", "yes")
     

@@ -32,6 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // DOM Element Bindings
     // --------------------------------------------------------------------------
     const activeProviderLabel = document.getElementById('activeProviderLabel');
+    const activeModelTag = document.getElementById('activeModelTag');
+    const selectCloudProvider = document.getElementById('selectCloudProvider');
     const activeCamTitle = document.getElementById('activeCamTitle');
     const shotClockTimer = document.getElementById('shotClockTimer');
     const toggleSafeGuides = document.getElementById('toggleSafeGuides');
@@ -431,6 +433,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target === metaDrawerOverlay) metaDrawerOverlay.style.display = 'none';
     });
 
+    // Cloud Provider Switcher Event Listener
+    if (selectCloudProvider) {
+        selectCloudProvider.addEventListener('change', async (e) => {
+            const targetProvider = e.target.value;
+            try {
+                const res = await fetch('/api/provider/switch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider: targetProvider })
+                });
+                const data = await res.json();
+                if (activeModelTag) {
+                    if (targetProvider === 'baseten') {
+                        activeModelTag.textContent = 'Baseten Muse Spark Open (2M TPM)';
+                    } else if (targetProvider === 'meta') {
+                        activeModelTag.textContent = 'Meta Model API ($150 Credits)';
+                    } else {
+                        activeModelTag.textContent = 'Local Simulation Mode';
+                    }
+                }
+            } catch (err) {
+                console.error("Provider switch error:", err);
+            }
+        });
+    }
+
     // --------------------------------------------------------------------------
     // Broadcast Canvas Rendering Engine
     // --------------------------------------------------------------------------
@@ -781,7 +809,13 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/config');
             const data = await res.json();
-            activeProviderLabel.textContent = data.active_provider;
+            if (activeProviderLabel) activeProviderLabel.textContent = data.active_provider;
+            if (data.active_provider && selectCloudProvider) {
+                const provLower = data.active_provider.toLowerCase();
+                if (provLower.includes('baseten')) selectCloudProvider.value = 'baseten';
+                else if (provLower.includes('meta')) selectCloudProvider.value = 'meta';
+                else selectCloudProvider.value = 'simulation';
+            }
             cameras = data.cameras;
             connectedCameraIds = cameras.filter(c => c.is_connected !== false).map(c => c.id);
             renderCamerasGrid();
@@ -955,7 +989,28 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        activeProviderLabel.textContent = t.active_provider_name;
+        if (t.active_provider_name) {
+            if (activeProviderLabel) activeProviderLabel.textContent = t.active_provider_name;
+            if (activeModelTag) {
+                const nameLower = t.active_provider_name.toLowerCase();
+                if (nameLower.includes('baseten')) {
+                    activeModelTag.textContent = 'Baseten Muse Spark Open (2M TPM)';
+                    if (selectCloudProvider && document.activeElement !== selectCloudProvider) {
+                        selectCloudProvider.value = 'baseten';
+                    }
+                } else if (nameLower.includes('meta')) {
+                    activeModelTag.textContent = 'Meta Model API ($150 Credits)';
+                    if (selectCloudProvider && document.activeElement !== selectCloudProvider) {
+                        selectCloudProvider.value = 'meta';
+                    }
+                } else {
+                    activeModelTag.textContent = 'Local Simulation Mode';
+                    if (selectCloudProvider && document.activeElement !== selectCloudProvider) {
+                        selectCloudProvider.value = 'simulation';
+                    }
+                }
+            }
+        }
         statTotalCuts.textContent = t.total_cuts_made;
         statHighlights.textContent = t.climax_highlights_count;
         statKineticCrop.textContent = currentReelX.toFixed(2);

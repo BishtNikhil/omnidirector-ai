@@ -103,6 +103,19 @@ async def set_camera_online_status(req: CameraStatusRequest):
         "active_camera_id": director.active_camera
     }
 
+class ProviderSwitchRequest(BaseModel):
+    provider: str
+
+@app.post("/api/provider/switch")
+async def switch_cloud_provider(req: ProviderSwitchRequest):
+    from core.providers import get_active_provider
+    new_provider = get_active_provider(req.provider)
+    director.provider = new_provider
+    return {
+        "status": "ok",
+        "provider_name": new_provider.provider_name
+    }
+
 @app.get("/api/benchmark")
 async def run_benchmark():
     import time

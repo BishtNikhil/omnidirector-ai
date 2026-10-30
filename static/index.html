@@ -71,10 +71,20 @@
                 <span>ON AIR</span>
             </div>
 
-            <div class="meta-pill">
-                <span>∞</span>
-                <span id="activeModelTag">Meta Muse Spark & SAM 3.1</span>
+            <!-- Cloud Engine Switcher -->
+            <div class="provider-select-wrap" title="Switch between Baseten (2M TPM), Meta Model API, or Simulation">
+                <select id="selectCloudProvider" class="provider-dropdown">
+                    <option value="baseten">⚡ Baseten Muse Spark Open (2M TPM)</option>
+                    <option value="meta">☁️ Meta Model API ($150 Credits)</option>
+                    <option value="simulation">💻 Local Simulation Fallback</option>
+                </select>
             </div>
+
+            <div class="meta-pill" title="Active Model Engine">
+                <span>∞</span>
+                <span id="activeModelTag">Baseten Muse Spark Open 1026</span>
+            </div>
+            <span id="activeProviderLabel" style="display:none;"></span>
 
             <!-- Theme Toggle Button -->
             <button class="btn-theme-toggle" id="btnThemeToggle" title="Toggle Light / Dark Theme" aria-label="Toggle theme">

@@ -123,3 +123,16 @@ def test_fastapi_endpoints():
     assert res_cam_on.status_code == 200
     assert "cam_reaction" in res_cam_on.json()["connected_cameras"]
 
+    # 9. Provider Switch API
+    res_sw_baseten = client.post("/api/provider/switch", json={"provider": "baseten"})
+    assert res_sw_baseten.status_code == 200
+    assert "baseten" in res_sw_baseten.json()["provider_name"].lower()
+
+    res_sw_meta = client.post("/api/provider/switch", json={"provider": "meta"})
+    assert res_sw_meta.status_code == 200
+    assert "meta" in res_sw_meta.json()["provider_name"].lower()
+
+    res_sw_sim = client.post("/api/provider/switch", json={"provider": "simulation"})
+    assert res_sw_sim.status_code == 200
+    assert "simulation" in res_sw_sim.json()["provider_name"].lower()
+
