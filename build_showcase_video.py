@@ -105,9 +105,9 @@ try:
         rec_init_time = time.time()
         page = context.new_page()
 
-        # Burned-In Speech Caption Component
-        def set_caption(text, speaker="NIKHIL SINGH BISHT • VOICE"):
-            page.evaluate("""({ text, speaker }) => {
+        # Burned-In Speech Caption Component (Clean, without speaker tag)
+        def set_caption(text):
+            page.evaluate("""({ text }) => {
                 let el = document.getElementById('demo-speech-caption');
                 if (!el) {
                     el = document.createElement('div');
@@ -122,29 +122,25 @@ try:
                     el.style.border = '1.5px solid rgba(130, 160, 210, 0.5)';
                     el.style.boxShadow = '0 16px 48px rgba(0, 0, 0, 0.8), 0 0 35px rgba(79, 122, 103, 0.35)';
                     el.style.borderRadius = '40px';
-                    el.style.padding = '12px 36px';
+                    el.style.padding = '14px 40px';
                     el.style.zIndex = '999999';
                     el.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
-                    el.style.fontSize = '21px';
+                    el.style.fontSize = '22px';
                     el.style.fontWeight = '600';
                     el.style.color = '#FFFFFF';
                     el.style.display = 'flex';
                     el.style.alignItems = 'center';
-                    el.style.gap = '14px';
-                    el.style.maxWidth = '88%';
+                    el.style.justifyContent = 'center';
+                    el.style.maxWidth = '85%';
                     el.style.textAlign = 'center';
                     el.style.pointerEvents = 'none';
                     el.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
                     document.body.appendChild(el);
                 }
                 el.innerHTML = `
-                    <span style="display:inline-flex; align-items:center; gap:6px; background:#4F7A67; color:#FFFFFF; font-size:12px; font-weight:800; padding:4px 10px; border-radius:6px; letter-spacing:0.8px; white-space:nowrap;">
-                        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#71F1B9; box-shadow:0 0 8px #71F1B9;"></span>
-                        ${speaker}
-                    </span>
-                    <span style="color:#F8FAFC; text-shadow:0 2px 8px rgba(0,0,0,0.6);">${text}</span>
+                    <span style="color:#FFFFFF; text-shadow:0 2px 10px rgba(0,0,0,0.7); line-height:1.4;">${text}</span>
                 `;
-            }""", {"text": text, "speaker": speaker})
+            }""", {"text": text})
 
         print("Navigating to live studio at http://localhost:8000 ...")
         page.goto("http://localhost:8000", wait_until="networkidle")
@@ -163,7 +159,7 @@ try:
         t0 = time.time()
 
         # 0.0s to 1.2s: Buffer gap before speech starts, showing ready studio
-        set_caption("Meta Global AI Developer Hackathon • OmniDirector Studio Initializing...", "OMNIDIRECTOR AI")
+        set_caption("Meta Global AI Developer Hackathon • OmniDirector Studio Initializing...")
         page.hover(".brand-title")
         time.sleep(1.2)
 
