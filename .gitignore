@@ -56,4 +56,10 @@ desktop.ini
 # Large Video / Output Temporary Files
 temp_recordings/
 output_raw/
+voiceover/
 *.tmp
+*.mp4
+*.webm
+*.mov
+*.wav
+*.mp3
