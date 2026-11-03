@@ -1,8 +1,8 @@
 """
-OmniDirector AI — Precision Synchronized 2K Showcase Video & Audio Muxer
+OmniDirector AI — Precision Synchronized 2K Showcase Video & Audio Muxer (v2 Enhanced)
 Records the live application at http://localhost:8000 with exact scene timing
-matched to the user's authentic voiceover audio (scene_1 to scene_7),
-then encodes via NVIDIA NVENC (RTX 5080) and muxes the master leveled audio.
+matched to the user's authentic enhanced voiceover audio (scene_1 to scene_7),
+with comfortable 1.2s lead-in gap, crystal clear spectral denoising, and broadcast leveling.
 """
 import os
 import sys
@@ -27,22 +27,19 @@ FINAL_SUBMISSION_MP4 = os.path.join(WORKSPACE_DIR, "omnidirector_ai_final_submis
 os.makedirs(RECORDINGS_DIR, exist_ok=True)
 
 # 1. Load Measured Scene Timings
-if not os.path.exists(TIMINGS_JSON) or not os.path.exists(MASTER_AUDIO):
-    print("Compiling voiceover master audio first...")
-    subprocess.run([sys.executable, "process_voiceover_master.py"], cwd=WORKSPACE_DIR, check=True)
-
 with open(TIMINGS_JSON, "r", encoding="utf-8") as f:
     timings_data = json.load(f)
 
 scenes = timings_data["scenes"]
 total_audio_duration = timings_data["total_duration"]
+intro_gap = timings_data.get("intro_gap_sec", 1.20)
 
 print("=================================================================")
-print("🎬 OMNIDIRECTOR AI — PRECISION SYNCED DEMO GENERATOR")
-print(f"Total Master Audio Duration: {total_audio_duration:.2f}s (Cleaned & Leveled -16 LUFS)")
+print("🎬 OMNIDIRECTOR AI — PRECISION SYNCED DEMO GENERATOR (v2)")
+print(f"Total Master Audio Duration: {total_audio_duration:.2f}s ({int(total_audio_duration // 60)}m {total_audio_duration % 60:.2f}s)")
+print(f"Intro Buffer Gap: {intro_gap:.2f}s (Allows viewer to settle in before voice starts)")
 for sc, dur in scenes.items():
     print(f"  {sc}: {dur:.2f}s")
-print("Hardware Acceleration: NVIDIA NVENC (RTX 5080)")
 print("=================================================================")
 
 # 2. Ensure Local Server is Running on Port 8000
@@ -152,19 +149,20 @@ try:
 
         # ======================================================================
         # SCENE 1: INTRODUCTION & STUDIO ARCHITECTURE
-        # Duration: scene_1 duration (~28.67s)
+        # Duration: scene_1 duration (~33.73s, including 1.20s intro buffer)
         # ======================================================================
         s1_dur = scenes["scene_1"]
         print(f"\n▶ Recording Scene 1 (Duration: {s1_dur:.2f}s)...")
         t0 = time.time()
 
+        # 0.0s to 1.2s: Buffer gap before speech starts, showing ready studio
         set_banner("Meta Global AI Developer Hackathon Submission ($1M Prize Pool)", "OmniDirector AI")
         page.hover(".brand-title")
-        time.sleep(4.0)
+        time.sleep(1.2 + 5.8) # t = 7.0s (Nikhil introduces himself)
 
         set_banner("The Problem: Expensive Human Crews & 10+ Hours Slicing Vertical Reels", "Broadcast Bottleneck")
         page.hover("#camerasGrid")
-        time.sleep(15.0)
+        time.sleep(15.5) # t = 22.5s (Technical director & editor bottleneck)
 
         set_banner("Autonomous Virtual Control Room Running Live in Your Browser", "Meta AI Core")
         page.hover(".status-badge")
@@ -173,7 +171,7 @@ try:
 
         # ======================================================================
         # SCENE 2: MULTI-CLOUD INFERENCE ENGINE SWITCHER
-        # Duration: scene_2 duration (~20.27s)
+        # Duration: scene_2 duration (~23.89s)
         # ======================================================================
         s2_dur = scenes["scene_2"]
         print(f"\n▶ Recording Scene 2 (Duration: {s2_dur:.2f}s)...")
@@ -181,11 +179,11 @@ try:
 
         set_banner("Baseten Serverless: 2,000,000 Tokens/Min (2M TPM) on Muse Spark Open", "Cloud Engine Matrix")
         page.hover("#selectCloudProvider")
-        time.sleep(10.0)
+        time.sleep(11.0)
 
         set_banner("1-Click Cloud Switcher: Seamless Routing to Meta Model API Cloud", "Zero-Downtime Routing")
         page.select_option("#selectCloudProvider", "meta")
-        time.sleep(4.5)
+        time.sleep(5.5)
 
         set_banner("Zero-Downtime Reliability: Switching Back to Baseten High-Throughput Cluster", "Production Primary")
         page.select_option("#selectCloudProvider", "baseten")
@@ -194,7 +192,7 @@ try:
 
         # ======================================================================
         # SCENE 3: AUTONOMOUS NARRATIVE CUTS & HARDWARE RESILIENCE
-        # Duration: scene_3 duration (~31.63s)
+        # Duration: scene_3 duration (~33.77s)
         # ======================================================================
         s3_dur = scenes["scene_3"]
         print(f"\n▶ Recording Scene 3 (Duration: {s3_dur:.2f}s)...")
@@ -202,19 +200,19 @@ try:
 
         set_banner("Muse Spark Multi-Agent Arbitration: Dialogue Pacing & Climax Detection", "Autonomous Director")
         page.hover("#reasoningBubble")
-        time.sleep(10.5)
+        time.sleep(12.0)
 
         set_banner("Pacing Rule: Enforcing 2.5s Minimum Hold Duration to Prevent Jarring Cuts", "Cinematic Pacing")
         page.hover("#tile_cam_wide")
         time.sleep(0.5)
         page.click("#tile_cam_wide") # Cut to CAM 2
-        time.sleep(9.5)
+        time.sleep(6.5)
 
         set_banner("Hardware Sentinel: Simulating Camera 4 Disconnect (Toggle to OFFLINE)", "Fault-Tolerant Switching")
         page.hover("#tile_cam_reaction")
         time.sleep(0.5)
         page.click("#tile_cam_reaction .cam-power-toggle") # Toggle offline
-        time.sleep(5.5)
+        time.sleep(6.0)
 
         set_banner("Fault-Tolerant Directing: AI Locks Exclusively to Active Live Feeds", "Zero-Black-Frame Guarantee")
         time.sleep(2.0)
@@ -224,7 +222,7 @@ try:
 
         # ======================================================================
         # SCENE 4: INTERACTIVE SAM 3.1 POINT PROMPTING
-        # Duration: scene_4 duration (~24.71s)
+        # Duration: scene_4 duration (~26.20s)
         # ======================================================================
         s4_dur = scenes["scene_4"]
         print(f"\n▶ Recording Scene 4 (Duration: {s4_dur:.2f}s)...")
@@ -232,7 +230,7 @@ try:
 
         page.click("#tile_cam_host") # Back to CAM 1
         set_banner("Meta SAM 3.1: Zero-Shot Spatio-Temporal Segmentation", "Vision Sentinel")
-        time.sleep(4.5)
+        time.sleep(4.8)
 
         set_banner("Interactive Point Prompting: Click Any Focal Subject on 4K Canvas", "Click-to-Track (<15ms)")
         canvas_box = page.locator("#studioMainCanvas").bounding_box()
@@ -258,7 +256,7 @@ try:
 
         # ======================================================================
         # SCENE 5: KINETIC 9:16 VERTICAL REEL SYNTHESIS
-        # Duration: scene_5 duration (~21.82s)
+        # Duration: scene_5 duration (~25.58s)
         # ======================================================================
         s5_dur = scenes["scene_5"]
         print(f"\n▶ Recording Scene 5 (Duration: {s5_dur:.2f}s)...")
@@ -266,11 +264,11 @@ try:
 
         set_banner("Automated 9:16 Kinetic Pan-and-Scan: Real-Time Speaker Center-Staging", "Reel Synthesis")
         page.hover(".reel-phone-frame")
-        time.sleep(7.5)
+        time.sleep(8.0)
 
         set_banner("Spring-Damped Physical Easing (0.08 Coefficient): Natural Steadicam Motion", "Physical Spring Physics")
         page.hover("#reelCanvas")
-        time.sleep(7.5)
+        time.sleep(8.0)
 
         set_banner("1-Click Highlight Export: Recording 10-Second VP9 WebM Vertical Reel", "Automated Publishing")
         page.hover("#btnExportReel")
@@ -281,7 +279,7 @@ try:
 
         # ======================================================================
         # SCENE 6: CMX 3600 EDL EXPORT & META PAYLOADS DRAWER
-        # Duration: scene_6 duration (~27.18s)
+        # Duration: scene_6 duration (~29.25s)
         # ======================================================================
         s6_dur = scenes["scene_6"]
         print(f"\n▶ Recording Scene 6 (Duration: {s6_dur:.2f}s)...")
@@ -295,33 +293,33 @@ try:
                 page.click("#btnExportEdl")
         except Exception:
             pass
-        time.sleep(12.5)
+        time.sleep(14.0)
 
         set_banner("Architecture Transparency: Live System Prompts & Verified JSON Contracts", "Developer Drawer")
         page.hover("#btnOpenMetaDrawer")
         time.sleep(0.4)
         page.click("#btnOpenMetaDrawer") # Open drawer
-        time.sleep(5.5)
+        time.sleep(6.5)
         page.click("#btnCloseDrawer") # Close drawer
         time.sleep(1.0)
 
         set_banner("Dual-Theme Architecture: Washed-Out Scandinavian Light & Sleek Dark Studio", "Polished UX")
         page.click("#btnThemeToggle") # Dark mode
-        time.sleep(2.5)
+        time.sleep(3.0)
         page.click("#btnThemeToggle") # Light mode
         rem_s6 = max(0.2, s6_dur - (time.time() - t0))
         time.sleep(rem_s6)
 
         # ======================================================================
         # SCENE 7: SUMMARY & OUTRO
-        # Duration: scene_7 duration (~14.13s)
+        # Duration: scene_7 duration (~15.81s)
         # ======================================================================
         s7_dur = scenes["scene_7"]
         print(f"\n▶ Recording Scene 7 (Duration: {s7_dur:.2f}s)...")
         t0 = time.time()
 
         set_banner("Democratizing Television Broadcasting for Solo Creators Worldwide", "OmniDirector AI")
-        time.sleep(5.5)
+        time.sleep(6.5)
 
         set_banner("Meta Global AI Developer Hackathon 2026 • Lead: Nikhil Singh Bisht", "Built for $1M Challenge")
         time.sleep(6.5)
@@ -350,44 +348,25 @@ if not recordings:
 raw_webm = os.path.join(RECORDINGS_DIR, recordings[0])
 print(f"Captured raw browser session: {raw_webm} ({os.path.getsize(raw_webm) / (1024 * 1024):.2f} MB)")
 
-# 4. Encode to 2K MP4 using NVENC hardware acceleration (RTX 5080)
-# Trimming pre-roll so frame 0 matches Scene 1 audio start perfectly!
-print(f"\nStep 1/2: Trimming pre-roll ({pre_roll_sec:.2f}s) & Encoding via NVIDIA NVENC (RTX 5080)...")
-nvenc_cmd = [
+# 4. Encode to 2K MP4 (High Fidelity x264 CRF 18, preset medium for crisp 2K 30fps)
+print(f"\nStep 1/2: Trimming pre-roll ({pre_roll_sec:.2f}s) & Encoding 2K Video...")
+encode_cmd = [
     "ffmpeg", "-y",
     "-ss", f"{pre_roll_sec:.3f}",
     "-i", raw_webm,
     "-t", f"{total_audio_duration:.3f}",
-    "-c:v", "h264_nvenc",
-    "-preset", "p7",
-    "-cq", "18",
-    "-b:v", "16M",
+    "-c:v", "libx264",
+    "-preset", "medium",
+    "-crf", "18",
     "-pix_fmt", "yuv420p",
-    "-r", "60",
+    "-r", "30",
     "-an",
     VIDEO_NO_AUDIO
 ]
-
-res = subprocess.run(nvenc_cmd, capture_output=True, text=True)
-if res.returncode != 0:
-    print("NVENC fallback to libx264 software encoder...")
-    fallback_cmd = [
-        "ffmpeg", "-y",
-        "-ss", f"{pre_roll_sec:.3f}",
-        "-i", raw_webm,
-        "-t", f"{total_audio_duration:.3f}",
-        "-c:v", "libx264",
-        "-preset", "slow",
-        "-crf", "17",
-        "-pix_fmt", "yuv420p",
-        "-r", "60",
-        "-an",
-        VIDEO_NO_AUDIO
-    ]
-    subprocess.run(fallback_cmd, check=True)
+subprocess.run(encode_cmd, check=True)
 
 # 5. Mux with Leveled Master Audio Track
-print(f"\nStep 2/2: Muxing 2K 60FPS video with master leveled voiceover track...")
+print(f"\nStep 2/2: Muxing 2K video with master leveled voiceover track...")
 mux_cmd = [
     "ffmpeg", "-y",
     "-i", VIDEO_NO_AUDIO,
@@ -403,9 +382,10 @@ subprocess.run(mux_cmd, check=True)
 print("\n" + "=" * 65)
 print("🎉 PERFECTLY SYNCHRONIZED SUBMISSION VIDEO CREATED!")
 print(f"Final Video File: {FINAL_SUBMISSION_MP4}")
-print(f"Resolution: 2560 x 1440 (2K QHD 60FPS)")
-print(f"Duration: {total_audio_duration:.2f}s (2m 48.39s)")
+print(f"Resolution: 2560 x 1440 (2K QHD)")
+print(f"Duration: {total_audio_duration:.2f}s ({int(total_audio_duration // 60)}m {total_audio_duration % 60:.2f}s)")
 print(f"File Size: {os.path.getsize(FINAL_SUBMISSION_MP4) / (1024 * 1024):.2f} MB")
-print("Audio: User Voiceover (-16 LUFS EBU R128 Normalized, Zero Blank Space)")
+print("Audio: User Voiceover (-16 LUFS EBU R128 Normalized, Denoised Spectral Gating)")
+print("Intro Buffer: 1.20s Lead-in (Audience settles in before speech begins)")
 print("Sync: 100% Frame-Accurate Dialogue Pace & Subtitle Timing")
 print("=================================================================")
