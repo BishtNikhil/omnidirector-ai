@@ -63,3 +63,13 @@ voiceover/
 *.mov
 *.wav
 *.mp3
+*.srt
+
+# Scratch & Video Generation Build Tools
+build_showcase_video.py
+generate_srt.py
+merge_voiceover.py
+process_enhanced_master.py
+process_voiceover_master.py
+DEMO_VIDEO_GUIDE.md
+VOICEOVER_GUIDE.md
